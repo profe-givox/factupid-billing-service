@@ -1,0 +1,25 @@
+version: "3.9"
+
+postgres:
+  image: postgres:16
+  container_name: api_billing_postgres
+  environment:
+    POSTGRES_USER: api_billing_user
+    POSTGRES_PASSWORD: api_billing_user_pa$$word
+    POSTGRES_DB: api_billing_db
+  volumes:
+    - pgdata:/var/lib/postgresql/data
+  networks:
+    - apis_net
+
+api_billing:
+  build: ./services/api_billing
+  container_name: api_billing
+  env_file: .env
+  depends_on:
+    - api_billing_postgres
+  networks:
+    - apis_net
+
+volumes:
+  pgdata:
