@@ -1,2 +1,4 @@
 fastapi[standard]==0.115.3
 sqlmodel==0.0.22
+stripe==14.1.0
+pydantic-settings==2.10.1
