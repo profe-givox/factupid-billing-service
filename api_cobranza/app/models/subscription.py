@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime, date
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 
+if TYPE_CHECKING:
+    from app.models.payment import Payment
 
 class Subscription(SQLModel, table=True):
     """
@@ -51,3 +53,5 @@ class Subscription(SQLModel, table=True):
         default_factory=datetime.utcnow,
         description="Fecha de creacion"
     )
+
+    payments: List["Payment"] = Relationship(back_populates="subscription")

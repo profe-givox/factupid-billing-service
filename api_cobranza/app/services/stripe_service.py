@@ -36,6 +36,13 @@ def create_checkout_session(
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
         },
+        payment_intent_data={
+        "metadata": {
+            "subscription_id": str(subscription_id),
+            "user_id": str(user_id),
+            }
+        },
+        
         success_url=settings.STRIPE_SUCCESS_URL,
         cancel_url=settings.STRIPE_CANCEL_URL,
     )

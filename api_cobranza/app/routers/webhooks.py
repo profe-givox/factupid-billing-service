@@ -35,6 +35,9 @@ async def stripe_webhook(
     # Evento principal
     if event["type"] == "checkout.session.completed":
         handle_checkout_completed(event["data"]["object"])
+        
+    if event["type"] == "payment_intent.succeeded":
+        handle_payment_succeeded(event["data"]["object"], event)
 
     return {"status": "ok"}
 
@@ -70,4 +73,33 @@ def handle_checkout_completed(session_data: dict):
         )
 
         db.add(subscription)
+        db.commit()
+
+def handle_payment_succeeded(payment_intent: dict, event: dict):
+    from app.db.session import engine
+    from app.models.payment import Payment
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+
+    subscription_id = payment_intent["metadata"].get("subscription_id")
+
+    if not subscription_id:
+        return
+
+    with Session(engine) as db:
+        subscription = db.get(Subscription, int(subscription_id))
+        if not subscription:
+            return
+
+        payment = Payment(
+            subscription_id=subscription.id,
+            provider="stripe",
+            provider_payment_id=payment_intent["id"],
+            amount=payment_intent["amount_received"],
+            currency=payment_intent["currency"],
+            status="succeeded",
+            raw_event=event,
+        )
+
+        db.add(payment)
         db.commit()
