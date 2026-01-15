@@ -9,6 +9,10 @@ from app.schemas.subscription import SubscriptionCreate, SubscriptionRead
 from app.services.stripe_service import create_checkout_session
 from app.schemas.payment import CheckoutSessionResponse
 
+from datetime import datetime
+from app.services.stripe_service import cancel_stripe_subscription
+from app.schemas.subscription import SubscriptionCancel
+
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
@@ -71,4 +75,51 @@ def init_subscription(
             created_at=subscription.created_at,
         ),
         "checkout_url": checkout_session.url,
+    }
+
+
+@router.post("/subscriptions/{subscription_id}/cancel")
+def cancel_subscription(
+    subscription_id: int,
+    data: SubscriptionCancel,
+    session: Session = Depends(get_session),
+):
+    stmt = select(Subscription).where(Subscription.id == subscription_id)
+    subscription = session.exec(stmt).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+    if subscription.status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail="Solo se pueden cancelar suscripciones activas"
+        )
+
+    if not subscription.stripe_subscription_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Suscripción no vinculada a Stripe"
+        )
+
+    # 1 Cancelar en Stripe
+    cancel_stripe_subscription(
+        stripe_subscription_id=subscription.stripe_subscription_id,
+        at_period_end=data.at_period_end,
+    )
+
+    # 2 Actualizar BD
+    subscription.cancel_at_period_end = data.at_period_end
+
+    if not data.at_period_end:
+        subscription.status = "canceled"
+        subscription.canceled_at = datetime.utcnow()
+
+    session.add(subscription)
+    session.commit()
+
+    return {
+        "status": "ok",
+        "subscription_id": subscription.id,
+        "cancel_at_period_end": data.at_period_end,
     }

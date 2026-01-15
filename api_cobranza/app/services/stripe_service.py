@@ -48,3 +48,17 @@ def create_checkout_session(
     )
 
     return session
+
+
+def cancel_stripe_subscription(
+    *,
+    stripe_subscription_id: str,
+    at_period_end: bool = True,
+):
+    """
+    Cancela una suscripción en Stripe.
+    """
+    return stripe.Subscription.modify(
+        stripe_subscription_id,
+        cancel_at_period_end=at_period_end,
+    )

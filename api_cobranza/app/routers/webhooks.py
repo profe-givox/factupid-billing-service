@@ -38,6 +38,8 @@ async def stripe_webhook(
         
     if event["type"] == "payment_intent.succeeded":
         handle_payment_succeeded(event["data"]["object"], event)
+    elif event["type"] == "customer.subscription.deleted":
+        handle_subscription_deleted(event["data"]["object"])
 
     return {"status": "ok"}
 
@@ -102,4 +104,28 @@ def handle_payment_succeeded(payment_intent: dict, event: dict):
         )
 
         db.add(payment)
+        db.commit()
+
+
+def handle_subscription_deleted(data: dict):
+    from app.db.session import engine
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+    from datetime import datetime
+
+    stripe_sub_id = data["id"]
+
+    with Session(engine) as db:
+        stmt = select(Subscription).where(
+            Subscription.stripe_subscription_id == stripe_sub_id
+        )
+        subscription = db.exec(stmt).first()
+
+        if not subscription:
+            return
+
+        subscription.status = "canceled"
+        subscription.canceled_at = datetime.utcnow()
+
+        db.add(subscription)
         db.commit()

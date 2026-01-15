@@ -55,3 +55,13 @@ class Subscription(SQLModel, table=True):
     )
 
     payments: List["Payment"] = Relationship(back_populates="subscription")
+    
+    canceled_at: Optional[datetime] = Field(
+    default=None,
+    description="Fecha de cancelación"
+    )
+
+    cancel_at_period_end: bool = Field(
+        default=False,
+        description="Cancelar al final del periodo"
+    )

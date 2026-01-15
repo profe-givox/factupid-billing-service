@@ -30,3 +30,6 @@ class SubscriptionRead(BaseModel):
     end_date: Optional[date]
     provider: str
     created_at: datetime
+    
+class SubscriptionCancel(BaseModel):
+    at_period_end: bool = True
