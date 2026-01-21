@@ -35,6 +35,19 @@ class Plan(SQLModel, table=True):
         description="Periodo del plan: month, year o null"
     )
 
+    # (clave)
+    billing_type: str = Field(
+        default="one_time",
+        description="Tipo de cobro: one_time | subscription"
+    )
+
+    # (solo para SaaS)
+    stripe_price_id: Optional[str] = Field(
+        default=None,
+        index=True,
+        description="Price ID de Stripe (solo si es subscription)"
+    )
+
     is_active: bool = Field(
         default=True,
         description="Indica si el plan esta activo"

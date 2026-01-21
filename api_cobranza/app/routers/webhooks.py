@@ -65,6 +65,7 @@ def handle_checkout_completed(session_data: dict):
         if not subscription:
             return
 
+        subscription.stripe_subscription_id = session_data["subscription"]
         subscription.status = "active"
         subscription.start_date = subscription.start_date or subscription.created_at.date()
 

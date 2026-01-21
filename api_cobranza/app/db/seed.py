@@ -5,11 +5,6 @@ from app.db.session import engine
 
 
 def seed_plans():
-    """
-    Inserta planes iniciales en la base de datos
-    solo si no existen.
-    """
-
     initial_plans = [
         {
             "code": "free",
@@ -17,23 +12,31 @@ def seed_plans():
             "price": 0,
             "currency": "MXN",
             "interval": None,
+            "billing_type": "one_time",
+            "stripe_price_id": None,
         },
         {
-            "code": "pro_mensual",
+            "code": "PRO",
             "name": "Plan Pro Mensual",
-            "price": 299,
+            "price": 50,
             "currency": "MXN",
             "interval": "month",
+            "billing_type": "subscription",
+            "stripe_price_id": "price_1SpxPwL5PT8hTeNFOHIRI88j",
         },
     ]
 
     with Session(engine) as session:
         for plan_data in initial_plans:
-            statement = select(Plan).where(Plan.code == plan_data["code"])
-            existing_plan = session.exec(statement).first()
+            plan = session.exec(
+                select(Plan).where(Plan.code == plan_data["code"])
+            ).first()
 
-            if not existing_plan:
-                plan = Plan(**plan_data)
-                session.add(plan)
+            if not plan:
+                session.add(Plan(**plan_data))
+            else:
+                # 🔥 OPCIONAL PERO RECOMENDADO
+                plan.stripe_price_id = plan_data.get("stripe_price_id")
+                plan.billing_type = plan_data["billing_type"]
 
         session.commit()

@@ -62,3 +62,33 @@ def cancel_stripe_subscription(
         stripe_subscription_id,
         cancel_at_period_end=at_period_end,
     )
+
+
+def create_subscription_checkout_session(
+    *,
+    stripe_price_id: str,
+    subscription_id: int,
+    user_id: int,
+) -> stripe.checkout.Session:
+    """
+    Crea una Checkout Session para suscripción SaaS real.
+    """
+
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        payment_method_types=["card"],
+        line_items=[
+            {
+                "price": stripe_price_id,
+                "quantity": 1,
+            }
+        ],
+        metadata={
+            "subscription_id": str(subscription_id),
+            "user_id": str(user_id),
+        },
+        success_url=settings.STRIPE_SUCCESS_URL,
+        cancel_url=settings.STRIPE_CANCEL_URL,
+    )
+
+    return session
