@@ -1,0 +1,518 @@
+{% extends 'console/layout.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<style>
+/* Estilos específicos para la sección legal */
+.legal {
+    font: 77%/1.5 Arial, Helvetica, sans-serif;
+    color: #333; /* Color de texto ligeramente oscuro para mejor legibilidad */
+    line-height: 1.6; /* Aumenta el espaciado entre líneas */
+    margin: 0 auto;
+    max-width: 800px; /* Limita el ancho del texto para mejorar la legibilidad */
+    padding: 20px;
+}
+
+/* Encabezado principal */
+.legal h1 {
+    text-align: center;
+    font-size: 1.8em;
+    margin-bottom: 0.5em;
+    color: #1a73e8; /* Color para destacar el título */
+}
+
+/* Encabezados secundarios */
+.legal h2, .legal h3 {
+    font-size: 1.4em;
+    margin-top: 1em;
+    color: #1a73e8; /* Color para consistencia */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Párrafos de texto */
+.legal p {
+    text-align: justify;
+    margin-bottom: 1em;
+}
+
+/* Listas ordenadas y no ordenadas */
+.legal ol, .legal ul {
+    margin: 1em 0;
+    padding-left: 2em;
+}
+
+.legal ol {
+    list-style-type: decimal;
+}
+
+.legal ul {
+    list-style-type: disc;
+}
+
+/* Listas anidadas */
+.legal ul ul {
+    list-style-type: circle;
+    margin-left: 1em;
+    padding-left: 1em;
+}
+
+/* Resaltar términos importantes */
+.legal .highlight {
+    font-weight: bold;
+    color: #d32f2f; /* Color rojo suave para destacar */
+}
+
+/* Cajas de advertencia o información */
+.legal .note {
+    background-color: #f9f9f9;
+    border-left: 4px solid #1a73e8;
+    padding: 10px;
+    margin: 1em 0;
+    font-style: italic;
+    color: #333;
+}
+
+/* Estilos para enlaces */
+.legal a {
+    color: #1a73e8;
+    text-decoration: none;
+}
+
+.legal a:hover {
+    text-decoration: underline;
+}
+
+</style>
+    <div id="content">
+        <div class="legal">
+            <h1>POLÍTICAS DE PRIVACIDAD DE FACTUPID</h1>
+            <p>
+            VERSIÓN: 1.0 <br>
+            FECHA DE ÚLTIMA ACTUALIZACIÓN: 26 DE OCTUBRE DEL 2024
+            </p>
+            <p>
+            POR FAVOR LEA CUIDADOSAMENTE LAS POLÍTICAS DE PRIVACIDAD DEL DOMINIO FACTUPID.COM QUE INCLUYE
+            CUALQUIER SUB-DOMINIO CON TERMINACIÓN FACTUPID.COM (EN ADELANTE LOS SITIOS) QUE SON OPERADOS POR
+            FACTUPID SA DE CV (EN ADELANTE FACTUPID).
+            </p>
+            <p>
+            Las páginas Web disponibles LOS SITIOS, así como todas las páginas híper-vinculadas en dichas páginas Web
+            (a menos que se indique lo contrario) son propiedad y están operados por FACTUPID y
+            están disponibles para usted bajo las siguientes políticas de privacidad:
+            </p>
+            <h2>Breve Descripción de Nuestros Servicios</h2>
+            <p>
+            FACTUPID ofrece servicios relacionados con la recepción, almacenamiento, resguardo,
+            consulta, emisión y transmisión de "Comprobantes Fiscales Digitales por Internet" (en adelante CFDI) al
+            usuario. Si éste llena una forma de registro o completa un proceso de registro éste se vuelve SUSCRIPTOR
+            de los mismos. La mayoría de los SERVICIOS son de carácter gratuito aunque puede haber de tiempo en tiempo,
+            servicios de valor agregado (en adelante SERVICIOS CON COSTO) en donde puede haber una contraprestación por
+            parte del SUSCRIPTOR para con FACTUPID. Esta política de privacidad tiene la intención
+            de informar al SUSCRIPTOR acerca de cómo FACTUPID colecta, usa, divulga y almacena toda
+            la información que colectamos o registramos para poder proveer toda la gama de servicios incluyendo nuestros
+            SERVICIOS CON COSTO.
+            </p>
+            <h2>Breve Descripción de Nuestros Usuarios</h2>
+            <p>
+            Tres tipos de usuarios (en adelante PERFIL o PERFILES) interactúan con nuestros servicios gratuitos,
+            SERVICIOS CON COSTO y LOS SITIOS de FACTUPID. Para una referencia sencilla,
+            usaremos las siguientes definiciones de posible PERFIL dentro de nuestra política:
+            </p>
+            <ul>
+            <li>
+                NAVEGANTES son usuarios que navegan en las propiedades electrónicas de FACTUPID
+                (LOS SITIOS) sin usar CLAVES DE ACCESO para utilizar cualquiera de los servicios gratuitos, SERVICIOS
+                CON COSTO o la información en FACTUPID que no requieran el uso de dichas CLAVES
+                DE ACCESO.
+            </li>
+            <li>
+                SUSCRIPTORES son los usuarios que completaron algún proceso de registro y aceptaron nuestro Acuerdo de
+                Términos y Condiciones de Uso de FACTUPID y en caso de emisión de CFDI también firmaron
+                de forma electrónica el Contrato de Servicios de Emisión de CFDI en FACTUPID y
+                utilizan CLAVES DE ACCESO para usar los servicios gratuitos y SERVICIOS CON COSTO de
+                FACTUPID.
+            </li>
+            <li>
+                ANUNCIANTES son las entidades que se anuncian dentro de las propiedades electrónicas y LOS SITIOS de
+                FACTUPID. Dependiendo de los PERFILES, diferentes porciones de estas políticas de
+                privacidad pueden aplicarle en diferentes tiempos.
+            </li>
+            </ul>
+            <h2>De la modificación posterior a éstas políticas de privacidad de FACTUPID</h2>
+            <p>
+            FACTUPID se reserva el derecho a su propia discreción, de modificar estas políticas
+            de privacidad de FINKOKFACTURACION en cualquier momento con la simple obligación de
+            notificarle a sus NAVEGANTES, SUSCRIPTORES Y ANUNCIANTES del mismo a través de una nota en LOS SITIOS de
+            FACTUPID o través de una notificación por correo electrónico o correo postal. El usar
+            estos servicios incluyendo los SERVICIOS CON COSTO por parte de cualquier PERFIL de nuestros usuarios
+            después de dichas notificaciones constituyen su más amplia aceptación a las nuevas políticas de privacidad
+            de FACTUPID.
+            </p>
+            <h2>Del Consentimiento de Nuestros Usuarios (NAVEGANTES, SUSCRIPTORES)</h2>
+            <p>
+            LOS NAVEGANTES AL NAVEGAR EN LOS SITIOS DE FACTUPID EN O DESPUÉS DE LA ÚLTIMA FECHA
+            DE PUBLICACIÓN DE ÉSTAS POLÍTICAS, ESTARÁN DE ACUERDO EN EL USO, MANEJO, DIVULGACIÓN Y ALMACENAMIENTO DE LA
+            INFORMACÍON QUE COLECTAMOS COMO SE DETALLA EN ESTAS POLÍTICAS DE PRIVACIDAD. AL REGISTRARSE COMO SUSCRIPTOR O
+            COMO ANUNCIANTE DE IGUAL FORMA, USTED ESTARÁ DE ACUERDO CON ESTAS POLÍTICAS DE PRIVACIDAD AQUÍ DETALLADAS EN
+            O DESPUÉS DE LA ÚLTIMA FECHA DE PUBLICACIÓN DE LAS MISMAS. SI USTED NO ESTÁ DE ACUERDO CON DICHAS POLÍTICAS,
+            DEBERÁ DESCONTINUAR EL USO DE NUESTROS SERVICIOS GRATUITOS Y SERVICIOS CON COSTO A TRAVÉS DE LOS SITIOS DE
+            FACTUPID DE FORMA INMEDIATA.
+            </p>
+            <h2>¿Qué tipo de información colectamos y por qué?</h2>
+            <p>
+            COLECTAMOS INFORMACIÓN PERSONAL E INFORMACIÓN NO PERSONAL SEGÚN EL PERFIL DEL USUARIO PARA QUE ÉSTE PUEDA
+            TRANSACCIONAR CON LOS SERVICIOS GRATUITOS Y SERVICIOS CON COSTO DE FACTUPID.
+            </p>
+            <h2>INFORMACIÓN PERSONAL</h2>
+            <p>
+            Es la información que puede asociarse con una persona o entidad en particular. INFORMACIÓN PERSONAL NO
+            incluye información que pueda ser anónima o que NO pueda correlacionarse con una entidad o persona en
+            particular usando esfuerzos razonables. Ejemplos de INFORMACIÓN PERSONAL son:
+            </p>
+            <ul>
+            <li>
+                Nombre
+            </li>
+            <li>
+                Teléfono
+            </li>
+            <li>
+                RFC
+            </li>
+            <li>
+                CURP
+            </li>
+            <li>
+                Dirección de correo electrónico
+            </li>
+            <li>
+                Mecanismos de cobro o pago
+            </li>
+            <li>
+                Datos que se generan al transaccionar con los servicios gratuitos y SERVICIOS CON COSTO de LOS SITIOS
+                de FACTUPID como pueden ser los CFDI (Comprobantes Fiscales Digitales por Internet) tanto de
+                emisión como de recepción
+            </li>
+            </ul>
+            <p>
+            Es necesario colectar dicha información personal como SUSCRIPTOR para poder operar con los servicios de
+            FACTUPID relacionados con la emisión y recepción de CFDI y toda actividad implícita
+            en ella.
+            </p>
+            <h2>INFORMACIÓN NO PERSONAL O NO ATRIBUIBLE A UNA ENTIDAD O PERSONA</h2>
+            <p>
+            Es cualquier información distinta a la personal y no atribuible o no relacionable a una entidad o persona.
+            Colectamos DOS (2) tipos de Información NO Personal:
+            </p>
+            <ul>
+            <li>
+                Datos de Sesión: Es la información que colectamos de NAVEGANTES que nos permiten asistirlos en la
+                navegación en LOS SITIOS de FACTUPID para hacerle mejoras de usabilidad y/o
+                mejoras de funcionalidad a los mismos. Estos DATOS DE SESIÓN NO se correlacionan con una entidad
+                o persona; son datos anónimos. Ejemplos de DATOS DE SESIÓN son:
+                <ul>
+                <li>
+                    Resolución de pantalla
+                </li>
+                <li>
+                    Tipo y versión de navegador
+                </li>
+                <li>
+                    Sistema Operativo
+                </li>
+                <li>
+                    La localización geográfica en base a su IP
+                </li>
+                </ul>
+            </li>
+            <li>
+                Datos de Cuenta: Es la información que colectamos de SUSCRIPTORES que NO es INFORMACIÓN PERSONAL.
+                Esta información es necesaria para que podamos transaccionar con la funcionalidad en los servicios
+                incluyendo SERVICIOS CON COSTO de FACTUPID y para prevenir y detectar fraudes. Si
+                bien los DATOS DE CUENTA no es INFORMACIÓN PERSONAL suministrada por el SUSCRIPTOR,  podemos asociarla
+                e incorporarla con INFORMACIÓN PERSONAL. Ejemplos de DATOS DE CUENTA son:
+                <ul>
+                <li>
+                    La hora, fecha del registro inicial de un SUSCRIPTOR y sus subsecuentes accesos a los servicios
+                    gratuitos y SERVICIOS CON COSTO
+                </li>
+                <li>
+                    DATOS DE SESIÓN que dejan de ser anónimos una vez que el SUSCRIPTOR se encuentre dentro de los
+                    servicios gratuitos o SERVICIOS CON COSTO de FACTUPID que requieran el uso de CLAVES DE ACCESO
+                </li>
+                </ul>
+            </li>
+            </ul>
+            <p>
+            FACTUPID NO DIVULGARÁ INFORMACIÓN PERSONAL A TERCEROS INCLUYENDO NÚMERO DE
+            TRANSACCIONES, NÚMERO DE FACTURAS ELECTRÓNICAS EMITIDAS O RECIBIDAS, MONTOS DE LAS MISMAS, TIPO DE
+            PRODUCTOS COMPRADOS, VENDIDOS Y CUALQUIER INFORMACIÓN RELACIONADA CON SUS COMPROBANTES FISCALES DIGITALES
+            SI NO EXISTE CONSENTIMIENTO POR ESCRITO O ELECTRÓNICO POR PARTE DEL USUARIO, NO IMPORTANDO EL PERFIL.
+            </p>
+            <p>
+            FACTUPID NO VENDE O RENTA LA BASE DE DATOS DE SUS SUSCRIPTORES CON NINGÚN TERCERO.
+            FACTUPID ESTÁ EN CONTRA DEL CORREO ELECTRÓNICO NO DESEADO (SPAM). TODOS LOS CORREOS
+            ELECTRÓNICOS QUE SIRVEN PARA OPERAR LAS FUNCIONALIDADES DEL SERVICIO O DE LOS SERVICIOS CON COSTO CUMPLEN
+            CON TODAS LAS REGLAS DE CAN-SPAM, ESTÁNDARES DE ENTREGA Y AUTENTICACIÓN COMO SPF, DKIM Y GOODMAIL.
+            FACTUPID NO COLECTA INFORMACIÓN PERSONAL DE NUESTROS NAVEGANTES.
+            </p>
+            <p>
+            FACTUPID NO COLECTA INFORMACIÓN PERSONAL DE NUESTROS NAVEGANTES.
+            </p>
+            <h2>Del uso del correo electrónico con nuestros SUSCRIPTORES</h2>
+            <p>
+            Usamos el mecanismo de correo electrónico con nuestros SUSCRIPTORES para operar los servicios y SERVICIOS
+            CON COSTO de FACTUPID:
+            </p>
+            <ul>
+            <li>
+                Mandar alertas, confirmaciones, información de nuevos productos y servicios y como complemento o
+                mecanismo para envío y recepción de CFDI.
+            </li>
+            <li>
+                Notificaciones de los servicios gratuitos y SERVICIOS CON COSTO necesarios para realizar la funcionalidad
+                de los mismos.
+            </li>
+            <li>
+                Respuestas a dudas, soporte técnico, asistencia en línea requerida por el SUSCRIPTOR.
+            </li>
+            <li>
+                Comunicados de nuestros patrocinadores, siempre de una manera copatrocinada con
+                FACTUPID, que sean de valor para nuestros SUSCRIPTORES y con opción a no seguir
+                recibiendo comunicados de este estilo.
+            </li>
+            <li>
+                Boletines informativos a los que el SUSCRIPTOR haya OPTADO por recibirlos. Correos promocionales de
+                nuestros ANUNCIANTES de forma copatrocinada con FACTUPID con ofertas de valor,
+                productos o servicios de valor para nuestros SUSCRIPTORES. Todos estos correos electrónicos (Boletines
+                y Promociones) contarán con mecanismos de de-subscripción o de cambio de frecuencia, formato o secciones
+                a recibir (Contenido Dinámico).
+            </li>
+            <li>
+                Cada servicio o SERVICIO CON COSTO tiene sus propios requerimientos de política de envíos y frecuencia.
+                Favor de revisar las condiciones y términos de cada uno de dichos servicios incluyendo SERVICIOS CON COSTO.
+            </li>
+            </ul>
+            <h2>¿Qué tipo de información colectamos de niños?</h2>
+            <p>
+            Intencionalmente NO colectamos INFORMACIÓN PERSONAL o INFORMACIÓN NO PERSONAL de niños menores de 13 años
+            de edad. Sin embargo si un menor de edad de 13 años navega en LOS SITIOS de FACTUPID
+            podremos almacenar DATOS DE SESIÓN del navegador como se haría con cualquier NAVEGANTE dentro de LOS SITIOS
+            de FACTUPID. Si usted tiene una razón para creer que un menor de edad de 13 años
+            proporcionó a FACTUPID INFORMACIÓN PERSONAL, favor de contactarnos a
+            techfidgsolutions1@gmail.com
+            </p>
+            <h2>¿Cómo colectamos la información?</h2>
+            <p>
+            INFORMACIÓN PERSONAL: Colectamos INFORMACIÓN PERSONAL de SUSCRIPTORES a FACTUPID a
+            través de procesos y formas de registro en línea. Algunas veces esa información es proporcionada a nosotros
+            "fuera de línea" a través de canales o integradores para que posteriormente sean ingresados a los sistemas en
+            línea de LOS SITIOS de FACTUPID a nombre del SUSCRIPTOR en cuestión. Requerimos que
+            nuestros SUSCRIPTORES tengan su información actualizada para que el SUSCRIPTOR pueda seguir utilizando los
+            servicios incluyendo los SERVICIOS CON COSTO. Colectamos INFORMACIÓN PERSONAL de SUSCRIPTORES al usar nuestros
+            mecanismos de correo electrónico y colectamos DATOS DE SESIÓN de nuestros SUSCRIPTORES y NAVEGANTES usando
+            "cookies" en el Navegador de Internet del PERFIL cuando se visitan LOS SITIOS de FACTUPID.
+            También se colectan DATOS DE SESIÓN en las bitácoras de nuestros servidores Web al momento en que nuestros
+            SUSCRIPTORES usan LOS SITIOS de FACTUPID proporcionando sus CLAVES DE ACCESO en nuestras
+            interfaces seguras (SSL, HTTPS). Colectamos DATOS DE CUENTA al momento del registro, inicio y salida de sesión
+            de nuestros SUSCRIPTORES a los servicios gratuitos y SERVICIOS CON COSTO que requieran uso de CLAVES DE
+            ACCESO. Los DATOS DE CUENTA los colectamos directamente sobre las interfaces Web de LOS SITIOS de
+            FACTUPID y/o a través de nuestros Archivos de Bitácoras de nuestros servidores Web.
+            </p>
+            <h2>¿Qué es una "Cookie", un "Pixel", un "Archivo de Bitácora"?</h2>
+            <h3>"Cookie(s)"</h3>
+            <p>
+            Una "cookie" es un paquete pequeño de información que se guarda en el Navegador de Internet del PERFIL que
+            visita LOS SITIOS de FACTUPID. Usamos "cookies" para guardar DATOS DE SESIÓN. Podemos
+            generar un identificador único aleatorio (no su actual identidad) usando una "cookie" en el Navegador de
+            Internet (en adelante el ID-PERFIL) para reconocer dicho navegador la próxima vez que se navegue en
+            LOS SITIOS de FACTUPID. Las "cookies" las usamos para guardar ciertas preferencias y
+            personalizar ciertos contenidos dentro de LOS SITIOS de FACTUPID. La mayoría de los
+            navegadores en Internet están configurados inicialmente para aceptar "cookies". Hay dos formas de rechazar
+            "cookies" en los navegadores de Internet: Puede deshabilitar o borrar el uso de "cookies" directamente en
+            su Navegador de Internet. Este procedimiento puede variar de Navegador en Navegador y le sugerimos por
+            favor revise los archivos de ayuda de cada Navegador para realizar esta acción. Si usted borra o deshabilita
+            el uso de "cookies" a nivel del Navegador, algunas funcionalidades de muchos sitios en Internet se podrán ver
+            afectadas y podrá ver el mismo tipo de contenido o no podrá usar en su totalidad todos los servicios gratuitos
+            y SERVICIOS CON COSTO de LOS SITIOS de FACTUPID. Puede configurar su Navegador de Internet
+            para que cada vez que visita un sitio Web en Internet, el Sitio en cuestión le pida "permiso" para crear una
+            "cookie". Si usted rechaza el "permiso" a que una "cookie" se cree en particular usted solamente está previniendo
+            que dicha "cookie" en cuestión se cree. Sin embargo, dada la naturaleza de que un Sitio en Internet puede
+            instalar más de una "cookie" a la vez,  el usar esta vía de "permiso" para cada "cookie" en cuestión puede ser
+            contraproducente y puede interferir con ciertas funcionalidades de los Sitios en Internet incluyendo LOS SITIOS
+            de FACTUPID al momento de rechazo del "permiso" para la creación de dicha "cookie".
+            </p>
+            <h3>"Pixel(es)"</h3>
+            <p>
+            Un "Píxel" es una imagen en un Sitio Web o en un correo electrónico que no esta visible al ojo humano.
+            Usamos estos "Pixeles" para colectar algunos DATOS DE SESIÓN de su Navegador y algunos comportamientos
+            dentro de LOS SITIOS de FACTUPID o de nuestros ANUNCIANTES. Un "Píxel" puede cambiar
+            o actualizar el contenido de una "cookie". La mayoría de los Navegadores de Internet están configurados
+            inicialmente para aceptar imágenes. Hay dos formas de prevenir el uso de imágenes en su Navegador de
+            Internet para que no se colecten DATOS DE SESIÓN: Puede deshabilitar en su Navegador y/o lector de correo
+            electrónico el despliegue de imágenes desde Internet. Este procedimiento puede variar de Navegador en Navegador
+            y/o de lector de correo electrónico por lo que le sugerimos revise los archivos de ayuda de cada Navegador o
+            sistema para realizar esta acción. Si usted deshabilita el uso de imágenes, algunas funcionalidades de muchos
+            sitios en Internet y de correos electrónicos se podrán ver afectados y el contenido en Internet se verá sin
+            imágenes (puro texto) o no podrá usar en su totalidad todos los servicios gratuitos y SERVICIOS CON COSTO de
+            LOS SITIOS de FACTUPID. Dada la naturaleza de que en algunas ocasiones el "Pixel" puede
+            cambiar o actualizar el contenido de una "cookie" usted puede configurar su Navegador de Internet para que
+            rechace las "cookies" como se explicó anteriormente y con estas acciones no habrá "cookies" que guarden DATOS
+            DE SESIÓN o el ID-PERFIL de forma no anónima.
+            </p>
+            <h3>"Archivo de Bitácora"</h3>
+            <p>
+            Un "Archivo de Bitácora" es un archivo temporal que guardamos en nuestros servidores Web donde almacenamos
+            DATOS DE SESIÓN y/o DATOS DE CUENTA del PERFIL que visita LOS SITIOS de FACTUPID.
+            Estos "Archivos de Bitácora" se usan para analizar los patrones de comportamiento de nuestros usuarios,
+            para optimizar la experiencia de uso de LOS SITIOS de FACTUPID, para el despliegue de
+            anuncios relevantes y segmentados por parte de nuestros ANUNCIANTES en LOS SITIOS y correos electrónicos de
+            FACTUPID y para la prevención de fraudes.
+            </p>
+            <h2>¿Cómo puedo ver o cambiar la información que se colecta?</h2>
+            <p>
+            INFORMACIÓN PERSONAL.- Los SUSCRIPTORES pueden cambiar toda su INFORMACIÓN PERSONAL una vez que accedan a
+            los servicios gratuitos y SERVICIOS CON COSTO mediante sus CLAVES DE ACCESO, excepto por la información
+            que se colecte a través de correo electrónico. Por procesos de auditoría y para prevención de fraudes,
+            FACTUPID puede continuar guardando la INFORMACIÓN PERSONAL originalmente almacenada
+            por el SUSCRIPTOR, aun cuando ésta sea borrada o modificada por el SUSCRIPTOR. Dada la naturaleza del
+            PERFIL de los NAVEGANTES, éstos no pueden cambiar su INFORMACIÓN PERSONAL ya que ésta no se colecta en
+            este PERFIL.
+            </p>
+            <p>
+            DATOS DE CUENTA.- Los SUSCRIPTORES NO pueden modificar DATOS DE CUENTA, como puede ser la fecha y hora en
+            la que usaron sus CLAVES DE ACCESO para entrar a los servicios gratuitos y/o SERVICIOS CON COSTO que las
+            requieran. Esto lo hacemos para mantener la integridad y la certeza de los datos.
+            </p>
+            <p>
+            DATOS DE SESIÓN.- Los SUSCRIPTORES y NAVEGANTES pueden ver y borrar ciertos DATOS DE SESIÓN que colectamos
+            usando herramientas del propio Navegador de Internet para ver y borrar las "cookies" asociados a LOS SITIOS
+            de FACTUPID. SUSCRIPTORES no pueden ver o cambiar los DATOS DE SESIÓN que colectamos
+            directamente en nuestros sistemas y/o "Archivos de Bitácora".
+            </p>
+            <h2>¿Dónde y por cuánto tiempo se almacena la información que se colecta?</h2>
+            <p>
+            INFORMACIÓN PERSONAL y DATOS DE CUENTA.- Guardamos la INFORMACIÓN PERSONAL y DATOS DE CUENTA en nuestros
+            centros de datos nacionales e internacionales. Tanto la INFORMACIÓN PERSONAL como los DATOS DE CUENTA se
+            conservan de forma indefinida mientras el SUSCRIPTOR tenga su INFORMACIÓN PERSONAL al día y su cuenta esté
+            al corriente y sin adeudos si utiliza SERVICIOS CON COSTO. Al momento de cierre de una cuenta ya sea por
+            voluntad del SUSCRIPTOR o por violar los términos y condiciones de uso de los SITIOS de
+            FACTUPID, o cualquier Contrato con FACTUPID, entonces
+            FACTUPID podrá o no conservar la INFORMACIÓN y DATOS DE CUENTA del
+            SUSCRIPTOR o podrá borrarlos a su discreción.
+            </p>
+            <p>
+            DATOS DE SESIÓN.- Guardamos DATOS DE SESIÓN usando "cookies" en los Navegadores de Internet de nuestros
+            usuarios y/o en nuestros centros de datos nacionales e internacionales. Los DATOS DE SESIÓN en las "cookies"
+            se guardan hasta que se sobrescriben después con nuevos DATOS DE SESIÓN o hasta que el SUSCRIPTOR o el
+            NAVEGANTE borren las "cookies" de su Navegador. Los DATOS DE SESIÓN en nuestros centros de datos se guardan
+            indefinidamente pero nos reservamos el derecho de borrar dichos datos en cualquier momento a nuestra
+            conveniencia.
+            </p>
+            <h2>¿Qué medidas de seguridad se toman para proteger la información que guardamos?</h2>
+            <p>
+            Mantenemos mecanismos y hacemos lo que está a nuestro alcance tanto en tecnología como en procedimientos
+            para asegurar los más altos niveles de seguridad en la información.
+            </p>
+            <h2>Ejemplo de estas medidas:</h2>
+            <p>
+            La Información que colectamos NO esta públicamente accesible desde LOS SITIOS de FACTUPID.
+            </p>
+            <p>
+            Usamos un sistema de roles, usuarios y permisos para controlar el acceso a la información que se guarda de
+            nuestros usuarios, no importando el PERFIL. En particular, en todas nuestras interfaces Web para SUSCRIPTORES
+            usamos encripción a nivel SSL (Secure Socket Layer) para proteger la INFORMACIÓN PERSONAL
+            </p>
+            <p>
+            Mantenemos un acceso estricto y autorizado con controles biométricos de personal para que acceda físicamente a
+            los centros de datos nacionales e internacionales de FACTUPID
+            </p>
+            <p>
+            Restringimos la información de FACTUPID al personal de FACTUPID,
+            contratistas y agentes que necesiten información para operar, desarrollar o mejorar nuestros servicios gratuitos
+            y SERVICIOS CON COSTO. Los empleados de FACTUPID están sujetos y firman un acuerdo de
+            confidencialidad contractual con FACTUPID y están sujetos a códigos de disciplina y
+            buenas prácticas incluyendo terminación contractual si fallan en cumplir estas obligaciones
+            </p>
+            <p>
+            Hacemos nuestro mayor esfuerzo para salvaguardar la información que colectamos. Como información, ninguna
+            transmisión de datos sobre Internet se puede garantizar de estar completamente segura. Además los DATOS DE
+            SESIÓN que se guardan en los Navegadores de Internet de los usuarios usando "cookies" son guardados en las
+            computadoras y Navegadores de los usuarios y no en nuestra red por lo que las medidas de seguridad necesarias
+            para salvaguardar dicha información queda bajo responsabilidad del usuario que opera dicho Navegador
+            de Internet.
+            </p>
+            <h2>¿Con quién compartimos la información?</h2>
+            <p>
+            INFORMACIÓN PERSONAL y DATOS DE CUENTA.- Podemos compartir esta información con proveedores de servicio que
+            nos asistan con las operaciones de nuestro negocio, como pueden ser instituciones bancarias para
+            verificación y autorización de tarjetas de crédito, servicios para reporte y monitoreo de fraudes
+            y con la SECRETARÍA DE ADMINISTRACIÓN TRIBUTARIA (SAT) para procesar reportes o cualquier información
+            que nos requiera.
+            </p>
+            <p>
+            De igual forma podremos compartir dicha información cuando:
+            </p>
+            <ul>
+            <li>
+                En caso de que una autoridad competente nos lo requiera bajo mandato judicial de acuerdo a las leyes
+                aplicables en los ESTADOS UNIDOS MEXICANOS
+            </li>
+            <li>
+                Nos veamos obligados a cumplir alguna Ley
+            </li>
+            <li>
+                Para prevenir daño o pérdida financiera
+            </li>
+            <li>
+                Reportar actividad ilegal
+            </li>
+            <li>
+                Investigar violaciones a nuestros términos de uso
+            </li>
+            <li>
+                Con algún tercero pero con consentimiento por escrito o electrónico por parte de nuestro SUSCRIPTORES
+            </li>
+            </ul>
+            <p>
+            INFORMACIÓN AGREGADA.- Para nuestros ANUNCIANTES, podemos compartir con ellos datos agregados más nunca
+            detallados en cantidad de usuarios, número de visitas al portal, por geografía, etc. con la finalidad
+            de poder presentar a nuestros usuarios publicidad relevante. DATOS DE SESIÓN.- Podremos compartir DATOS
+            DE SESIÓN con terceros que sean contratados directamente con FACTUPID que nos ayuden
+            a mejorar LOS SITIOS de FACTUPID.
+            </p>
+            <h2>En caso de compartir información con terceros ¿Cuál es la obligación del tercero para con la información?</h2>
+            <p>
+            Tenemos acuerdos de confidencialidad con terceros para que el tercero en cuestión le de tratamiento a la
+            INFORMACIÓN PERSONAL y la INFORMACIÓN NO PERSONAL como CONFIDENCIAL y con la única salvedad de que dicha
+            información solamente va a ser utilizada para cumplir con la relación de negocio acordado con dicho tercero.
+            Esto aplica a la información que nosotros pudiésemos colectar de nuestros usuarios y no a la información que
+            directamente el tercero colecte de nuestros usuarios. Le sugerimos revise cuidadosamente las políticas de
+            privacidad y prácticas que el tercero en cuestión aplicará sobre su información.
+            </p>
+            <h2>¿Cuándo entra estas políticas de privacidad en vigor?</h2>
+            <p>
+            Entran en vigor inmediatamente el 25 de Octubre del 2024 y es requisito para que nuestros SUSCRIPTORES y
+            NAVEGANTES utilicen los servicios gratuitos y SERVICIOS CON COSTO de FACTUPID. Si usted
+            NO ESTA DE ACUERDO con éstas POLÍTICAS DE PRIVACIDAD DE FACTUPID, usted NO TIENE DERECHO
+            a usar los servicios gratuitos y SERVICIOS CON COSTO de FACTUPID ni a NAVEGAR por LOS
+            SITIOS de FACTUPID.
+            </p>
+            <h2>¿Dónde puedo obtener más información de las POLÍTICAS DE PRIVACIDAD DE FACTUPID?</h2>
+            <p>
+            Siéntase en la libertad de contactarnos si usted tiene preguntas, dudas o comentarios acerca de estas
+            políticas de Privacidad. Usted puede contactarnos en techfidgsolutions1@gmail.com o por correo postal en:
+            FACTUPID, Yunta 309 Col Campestre Tarimbaro, C.P. 58000 de la Ciudad de Tarimbaro Michoacán, MÉXICO a la atención de Departamento Legal.
+            </p>
+            <h2>¿Cuál es la Ley y Jurisdicción aplicable para FACTUPID?</h2>
+            <p>
+            Todos nuestros Contratos, Acuerdos de Términos de Condiciones de Uso y éstas Políticas de Privacidad se
+            rigen por las LEYES MEXICANAS. FACTUPID y sus usuarios no importando el PERFIL,
+            renuncian expresamente a cualquier otro fuero y se someten al de los Juzgados y Tribunales de la Ciudad
+            de Morelia Michoacán México en los ESTADOS UNIDOS MEXICANOS.
+            </p>
+        </div>
+
+    </div>
+{% endblock %}

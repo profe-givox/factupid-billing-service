@@ -1,0 +1,240 @@
+{% extends "console/layout.html" %}
+
+{% load breadcrumbs %}
+{% block breadcrumbs %}
+    {% breadcrumb_url "Inicio" "inicio" %}
+    {% breadcrumb_url "Servicios"   %}
+   
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">Catálogo de Servicios y Planes</h1>
+
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for servicio, data in servicios_con_planes.items %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>{{ servicio.nombre }}</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ servicio.descripcion }}</p>
+
+                            <p><strong>URL del Servicio:</strong> <a href="{{ data.url_servicio }}" target="_blank">{{ data.url_servicio }}</a></p>
+                            <form id="form{{ servicio.id }}" action="{% url 'seleccion_servicio' %}" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="service_id" value="{{ servicio.id }}">
+                            </form>
+
+                            {% if data.plan %}
+                            <p>Plan Seleccionado: {{ data.plan.nombre }}</p>
+                            {% endif %}
+                            
+                            <button type="button" class="btn btn-primary" onclick="showPlanModal('{{ servicio.id }}')">
+                                Seleccionar Plan
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="consultaServiciosActivos()">Consultar servicios contratados</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plan Modal -->
+                <div class="modal fade" id="planModal{{ servicio.id }}" tabindex="-1" aria-labelledby="planModalLabel{{ servicio.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="planModalLabel{{ servicio.id }}">Planes Disponibles</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    {% for plan in planes %}
+                                    <div class="col-md-4 mb-4">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ plan.nombre }}</h5>
+                                                <p class="card-text">{{ plan.descripcion }}</p>
+                                                <p class="card-text">Precio: {{ plan.precio }}</p>
+                                                
+                                                    {% if data.plan and plan.id == data.plan.id %}
+                                                    <button type="button" class="btn btn-danger" disabled>Ya lo tienes</button>
+                                                {% else %}
+                                                    <button type="button" class="btn btn-primary" onclick="selectPlan('{{ servicio.id }}', '{{ plan.id }}', '{{ plan.nombre }}', '{{ servicio.url_servicio }}')">Seleccionar</button>
+                                                {% endif %}
+                                            
+<!--                                                 <button type="button" class="btn btn-primary" onclick="selectPlan('{{ servicio.id }}', '{{ plan.id }}', '{{ plan.nombre }}', '{{ servicio.url_servicio }}')">Seleccionar</button> -->
+                                               
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Confirmación para Eliminar Plan -->
+                <div class="modal fade" id="confirmDeleteModal{{ servicio.id }}" tabindex="-1" aria-labelledby="confirmDeleteModalLabel{{ servicio.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="confirmDeleteModalLabel{{ servicio.id }}">Confirmación de Eliminación</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>¿Estás seguro de eliminar el plan seleccionado?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-danger" onclick="eliminarPlan('{{ servicio.id }}')">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Seleccionar Plan -->
+<div class="modal fade" id="confirmSelectPlanModal" tabindex="-1" aria-labelledby="confirmSelectPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmSelectPlanModalLabel">Confirmación de Selección de Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de seleccionar el siguiente plan?</p>
+                <p id="selectedPlanInfo"></p>
+                <!-- Checkbox para aceptar términos y condiciones -->
+                <div class="form-check mt-3">
+                    <input type="checkbox" class="form-check-input" id="termsCheckbox" onchange="toggleAcceptButton()">
+                    <label class="form-check-label" for="termsCheckbox">
+                        Acepto los <a href="{% url 'invoice:Terminos' %}" target="_blank">términos y condiciones</a>
+                    </label>
+                </div>
+            </div>
+
+            <div id="loading-spinner" style="display:none; text-align:center; margin-top: 20px;">
+             <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+             </div>
+                 <p>Enviando instrucciones de uso a tu correo electronico, por favor espera...</p>
+             </div>
+
+             <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <!-- Botón de aceptar inicialmente deshabilitado -->
+                <button type="button" class="btn btn-primary" onclick="acceptPlanSelection()" id="acceptButton" disabled>Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    // Función para habilitar/deshabilitar el botón de aceptar
+    function toggleAcceptButton() {
+        const termsCheckbox = document.getElementById('termsCheckbox');
+        const acceptButton = document.getElementById('acceptButton');
+        acceptButton.disabled = !termsCheckbox.checked; // Habilita el botón si el checkbox está marcado
+    }
+
+    var selectedServiceId = '';
+    var selectedPlanId = '';
+    var selectedServiceUrl = '';
+
+    function showPlanModal(serviceId) {
+        selectedServiceId = serviceId;
+        $('#planModal' + serviceId).modal('show');
+    }
+
+    function selectPlan(serviceId, planId, planName, serviceUrl) {
+        selectedServiceId = serviceId;
+        selectedPlanId = planId;
+        selectedServiceUrl = serviceUrl;
+        $('#planModal' + serviceId).modal('hide');
+        $('#selectedPlanInfo').text(planName);
+        $('#confirmSelectPlanModal').modal('show');
+    }
+
+    function acceptPlanSelection() {
+        if (selectedServiceId && selectedPlanId) {
+            var formData = $('#form' + selectedServiceId).serialize();
+            formData += '&plan_id=' + selectedPlanId;
+
+            // Mostrar el spinner antes de realizar la solicitud
+            $('#loading-spinner').show();
+
+            $.ajax({
+                url: '{% url "seleccion_servicio" %}',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    // Ocultar el spinner después de recibir la respuesta
+                    $('#loading-spinner').hide();
+
+                    if (response.success) {
+                        if (confirm(response.message + '\nPresiona "Aceptar" para continuar.')) {
+                            var serviceKey = 'selectedServiceUrl_' + selectedServiceId;
+                            localStorage.setItem(serviceKey, response.service_url);
+
+                            var serviceUrlElement = $('#serviceUrl' + selectedServiceId);
+                            serviceUrlElement.html('<a href="' + response.service_url + '" id="selectedServiceLink' + selectedServiceId + '">' + response.service_url + ' (Activado)</a>');
+
+                            $('#confirmSelectPlanModal').modal('hide');
+                            location.reload();
+                        }
+                    } else {
+                        if (confirm(response.message + '\nPresiona "Aceptar" para recargar la página.')) {
+                            location.reload();
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    $('#loading-spinner').hide();  // Ocultar el spinner en caso de error
+                    var response = JSON.parse(xhr.responseText);
+                    alert(response.message);
+                    location.reload();
+                }
+            });
+        }
+    }
+
+    function eliminarPlan(serviceId) {
+        $.ajax({
+            url: '{% url "eliminar_servicio" %}',
+            type: 'POST',
+            data: {
+                'service_id': serviceId,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('Plan eliminado correctamente');
+                var serviceKey = 'selectedServiceUrl_' + serviceId;
+                localStorage.removeItem(serviceKey);
+
+                var serviceUrlElement = $('#serviceUrl' + serviceId);
+                serviceUrlElement.empty();
+                $('#confirmDeleteModal' + serviceId).modal('hide');
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al eliminar el plan:', error);
+            }
+        });
+    }
+
+    function consultaServiciosActivos() {
+        window.location.href = "{% url 'consultar_servicios_api' %}";
+    }
+</script>
+
+{% endblock %}

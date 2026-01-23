@@ -1,0 +1,429 @@
+{% extends 'perfiles/body.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container mt-4">  <!-- Cambio aquí mt-5 a mt-4 -->
+   
+{% load invoice_breadcrumbs %}
+{% block invoice_breadcrumbs %}
+<nav class="fw-arial" aria-label="breadcrumb" style="background-color: #e3e4e5; padding: 5px; border-radius: 100px; display: inline-block;">
+    {% breadcrumb_url "Inicio" "invoice:inicio" %}
+    {% breadcrumb "Perfil y preferencias"   %}
+</nav>
+</div>
+{% endblock %}
+<h1 class="text-center">Status</h1>
+
+<!-- Mostrar estado del perfil -->
+<div class="text-center mb-4">
+    {% if perfil_registrado %}
+        <i class="fas fa-check-circle text-success" title="Perfil registrado"></i>
+        <span>Perfil registrado</span>
+    {% else %}
+        <i class="fas fa-times-circle text-danger" title="Perfil no registrado"></i>
+        <span>Perfil no registrado</span>
+    {% endif %}
+</div>
+
+{% if perfil_registrado %}
+    <!-- Botón para abrir el modal -->
+    <div class="text-center mb-4">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#infoModal">
+            Historial de créditos
+        </button>
+        
+        <div class="text-center mb-4">
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#infoModalContrato">
+                Contrato
+            </button>
+        </div>
+
+        <!-- Modal para Historial de Créditos -->
+        <div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="infoModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="infoModalLabel">Historial de Créditos</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="facturasContent">
+                            <!-- Aquí se cargarán las facturas filtradas -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Contrato -->
+        <div class="modal fade" id="infoModalContrato" tabindex="-1" role="dialog" aria-labelledby="infoModalContratoLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg custom-modal-width" role="document" style="max-height: 80%;">
+                <div class="modal-content" style="max-height: 100%;">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="infoModalContratoLabel">Contrato</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                        <div id="ContratoContent">
+                            <!-- Aquí se cargarán los contratos filtrados -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endif %}
+
+{% if perfil_fiscal_user == None or perfil_fiscal_user.estado_firma == "false" %}
+<div class="container mt-5">
+    <div class="step-container">
+      
+        <!-- Wizard Steps -->
+        <ul class="wizard-steps">
+            <!-- Paso 1 -->
+            <li class="{% if perfil_fiscal_user == None %}current{% else %}completed{% endif %}">
+                <h5>Paso 1</h5>
+                <span>Llene su perfil fiscal</span>
+            </li>
+
+            <!-- Paso 2 -->
+            <li class="{% if perfil_fiscal_user and perfil_fiscal_user.estado_firma == 'false' %}current{% else %}{% if perfil_fiscal_user %}completed{% endif %}{% endif %}">
+                <h5>Paso 2</h5>
+                <span>Firme el contrato</span>
+            </li>
+
+            <li>
+                <h5>Paso 3</h5>
+                <span>Perfil completado</span>
+            </li>
+            {% comment %} <!-- Paso 3 -->
+            <li class="{% if perfil_fiscal_user and perfil_fiscal_user.estado_firma == 'true' %}current{% endif %}">
+                <h5>Paso 3</h5>
+                <span>Seleccionar Fecha</span>
+            </li>
+
+            <!-- Paso 4 -->
+            <li>
+                <h5>Paso 4</h5>
+                <span>Agendar</span>
+            </li> {% endcomment %}
+            
+        </ul>
+    </div>
+</div>
+
+{% endif %}
+
+{% if perfil_fiscal_user == None %}   
+<div class="alert alert-warning d-flex align-items-center p-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i> <!-- Icono de advertencia más grande -->
+    <div class="flex-grow-1">
+        <p class="mb-0"> <!-- Eliminamos márgenes con mb-0 -->
+            <strong>Atención:</strong> Para acceder a todas las funciones de invoice, es necesario registrar su perfil fiscal.
+            <br>
+            <span class="text-muted">Complete su perfil llenando el formulario.</span>
+        </p>
+    </div>
+</div>
+{% else %}
+    {% if perfil_fiscal_user.estado_firma == "false" %}
+    <div class="alert alert-warning d-flex align-items-center p-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i> <!-- Icono de advertencia más grande -->
+        <div class="flex-grow-1">
+            <p class="mb-0"> <!-- Eliminamos márgenes con mb-0 -->
+                <strong>Atención:</strong> Para completar su perfil realice la firma del contrato.
+                <br>
+                <span class="text-muted">Firme su contrato haciendo clic en el botón a continuación.</span>
+            </p>
+        </div>
+        <a href="{{ url_sign_manifest }}" class="btn btn-primary ms-3">
+            <i class="fas fa-user-cog"></i> Contrato
+        </a>
+        
+    </div>
+    {% endif %}
+{% endif %}
+
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'moral' %}active{% endif %}" id="moral-tab" data-bs-toggle="tab" href="#moral" role="tab" aria-controls="moral" aria-selected="{% if tipoReceptor == 'moral' %}true{% else %}false{% endif %}">Persona Moral 🏢 </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'fisica' %}active{% endif %}" id="fisica-tab" data-bs-toggle="tab" href="#fisica" role="tab" aria-controls="fisica" aria-selected="{% if tipoReceptor == 'fisica' %}true{% else %}false{% endif %}">Persona Física 👨🏻‍💼👩🏻‍💼</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'regimen' %}active{% endif %}" id="regimen-tab" data-bs-toggle="tab" href="#regimen" role="tab" aria-controls="regimen" aria-selected="{% if tipoReceptor == 'regimen' %}true{% else %}false{% endif %}">Régimen Fiscal 📊</a>
+    </li>
+</ul>
+
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade {% if tipoReceptor == 'moral' %}show active{% endif %}" id="moral" role="tabpanel" aria-labelledby="moral-tab">
+        <!-- Formulario de Persona Moral -->
+        <form method="post" action="." enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    {{ moral_form.errors }}
+                    <input type="hidden" name="action" value="{% if action == 'update' %}update{% else %}add{% endif %}">
+                    <input type="hidden" name="submit_type" value="moral_submit">
+                    <div class="container">
+                        <div class="row">
+                            {% for field in moral_form.visible_fields %}
+                                {% if field.name == 'mostrar_razon_social' %}
+                                    <div class="col-12">
+                                       <hr> <h3 style="color: darkblue;">Opciones del CFDI (XML y Representación Impresa)</h3> <hr>
+                                    </div>
+                                {% endif %}
+                                <!-- Campos del formulario -->
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                                <!-- Campo para subir archivo .key -->
+                                {% if field.name == 'key_file' %}
+                                    <div class="form-group col-md-6">
+                                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                        {{ field }}
+                                    </div>
+                                {% endif %}
+                                <!-- Campo para subir archivo .cer -->
+                                {% if field.name == 'cer_file' %}
+                                    <div class="form-group col-md-6">
+                                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                        {{ field }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> {% if action == 'update' %}Actualizar{% else %}Guardar registro{% endif %}
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="tab-pane fade {% if tipoReceptor == 'fisica' %}show active{% endif %}" id="fisica" role="tabpanel" aria-labelledby="fisica-tab">
+        <!-- Formulario de Persona Física -->
+        <form method="post" action="." enctype="multipart/form-data" class="needs-validation" novalidate>
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    {{ fisico_form.errors }}
+                    <input type="hidden" name="action" value="{% if action == 'update' %}update{% else %}add{% endif %}">
+                    <input type="hidden" name="submit_type" value="fisica_submit">
+                    <div class="container">
+                        <div class="row">
+                            {% for field in fisico_form.visible_fields %}
+                                {% if field.name == 'mostrar_razon_social' %}
+                                    <div class="col-12">
+                                       <hr> <h3 style="color: darkblue;">Opciones del CFDI (XML y Representación Impresa)</h3> <hr>
+                                    </div>
+                                {% endif %}
+                                <!-- Campos del formulario -->
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                                <!-- Campo para subir archivo .cer -->
+                                {% if field.name == 'cer_file' %}
+                                    <div class="form-group col-md-6">
+                                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                        {{ field }}
+                                    </div>
+                                {% endif %}
+                                <!-- Campo para subir archivo .key -->
+                                {% if field.name == 'key_file' %}
+                                    <div class="form-group col-md-6">
+                                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                        {{ field }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> {% if action == 'update' %}Actualizar{% else %}Guardar registro{% endif %}
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="tab-pane fade {% if tipoReceptor == 'regimen' %}show active{% endif %}" id="regimen" role="tabpanel" aria-labelledby="regimen-tab">
+        <!-- Formulario de Régimen Fiscal -->
+        <form method="post" action="." enctype="multipart/form-data">
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{% if action == 'update' %}update{% else %}add{% endif %}">
+                    <input type="hidden" name="submit_type" value="regimen_submit">
+                    <div class="container">
+                        <div class="row">
+                            {% for field in regimen_form.visible_fields %}
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> {% if action == 'update' %}Actualizar{% else %}Guardar registro{% endif %}
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+        // Cargar contenido de facturas y contratos
+        fetch("{% url 'invoice:perfil_historial' %}")
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('facturasContent').innerHTML = data;
+        });
+    
+        fetch("{% url 'invoice:lista_contratoPerfil' %}")
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('ContratoContent').innerHTML = data;
+        });
+    
+        // Función para limpiar el formulario contrario
+        function limpiarFormularioContrario(formularioId) {
+            var formContainer = document.getElementById(formularioId);
+            var form = formContainer ? formContainer.querySelector('form') : null;
+            if (form) {
+                form.reset();
+            } else {
+                console.error(`No se encontró un formulario dentro del elemento con id ${formularioId}.`);
+            }
+        }
+    
+        // Agregar manejadores de eventos para los formularios
+        var moralForm = document.querySelector('#moral form');
+        var fisicaForm = document.querySelector('#fisica form');
+        
+        if (moralForm) {
+            moralForm.addEventListener('submit', function() {
+                limpiarFormularioContrario('fisica');
+            });
+        }
+        
+        if (fisicaForm) {
+            fisicaForm.addEventListener('submit', function() {
+                limpiarFormularioContrario('moral');
+            });
+        }
+    
+        // Obtener el username del usuario autenticado
+        var authenticatedUsername = "{{ user.username }}";  // Esto asume que el contexto tiene la variable 'user'
+    
+        // Seleccionar el campo user y ocultar las opciones no deseadas en el formulario de Persona Moral
+        var userFieldMoral = document.querySelector('#moral select[name="user"]');
+        if (userFieldMoral) {
+            for (var i = 0; i < userFieldMoral.options.length; i++) {
+                if (userFieldMoral.options[i].text !== authenticatedUsername) {
+                    userFieldMoral.options[i].style.display = 'none';
+                } else {
+                    userFieldMoral.selectedIndex = i;
+                }
+            }
+        }
+    
+        
+    
+        // Seleccionar el campo user y ocultar las opciones no deseadas en el formulario de Persona Física
+        var userFieldFisica = document.querySelector('#fisica select[name="user"]');
+        if (userFieldFisica) {
+            for (var i = 0; i < userFieldFisica.options.length; i++) {
+                if (userFieldFisica.options[i].text !== authenticatedUsername) {
+                    userFieldFisica.options[i].style.display = 'none';
+                } else {
+                    userFieldFisica.selectedIndex = i;
+                }
+            }
+        }
+});
+
+$('form').on('submit', function (e) {
+    e.preventDefault();
+    cargando();
+    var formData = new FormData(this);
+    $.ajax({
+        url: window.location.pathname,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json'
+    }).done(function (data) {
+        if (!data.hasOwnProperty('error')) {
+            window.location.reload();
+        } else {
+            message_error(data.error);
+        }
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        alert(textStatus + ': ' + errorThrown);
+    });
+});
+    
+</script>
+    
+
+<style>
+    .custom-modal-width {
+        max-width: 90%; /* Ajusta este valor según tus necesidades */
+        width: 90%; /* Asegúrate de que el modal tenga el ancho deseado */
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "LadoClientes/forms/change_formFacturas_Base.html" %}
+
+{% block newsForms %}
+<!-- Conceptos personalizados -->
+{% for inline_admin_formset in inline_admin_formsets %}
+  {% if inline_admin_formset.opts.verbose_name_plural == "Conceptos" %}
+      <div class="col-md-12 mb-4">
+          <div class="card shadow-sm border border-light">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <strong class="mb-0">📦 Conceptos extends</strong>
+          </div>
+          <div class="card-body" id="contenedor-conceptos">
+              {{ inline_admin_formset.formset.management_form }}
+              {{ inline_admin_formset.non_form_errors }}
+              {% for inline_admin_form in inline_admin_formset.forms %}
+              <div class="formulario-concepto mb-4 border rounded p-3">
+                  <div class="d-none">
+                    {% if inline_admin_form.instance.pk %}
+                        {{ inline_admin_form.DELETE }}
+                    {% endif %}
+                  </div>
+                  <div class="row">
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Objeto impuesto</label>
+                      {{ inline_admin_form.c_ObjetoImp }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Cantidad</label>
+                      {{ inline_admin_form.cantidad }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Valor unitario</label>
+                      {{ inline_admin_form.valorUnitario }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Importe</label>
+                      {{ inline_admin_form.importe }}
+                  </div>
+                  </div>
+                  <div class="row">
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Descripción</label>
+                      {{ inline_admin_form.descripcion }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Identificador</label>
+                      {{ inline_admin_form.noIdentificacion }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Unidad</label>
+                      {{ inline_admin_form.unidad }}
+                  </div>
+                  </div>
+                  <div class="row">
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Clave producto</label>
+                      {{ inline_admin_form.c_ClaveProdServ }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Descripción (SAT)</label>
+                      <input type="text" class="form-control descripcion-sat" readonly>
+
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Clave unidad</label>
+                      {{ inline_admin_form.c_ClaveUnidad }}
+                  </div>
+                  <div class="col-md-3 mb-3">
+                      <label class="form-label">Nombre unidad (SAT)</label>
+                      <input type="text" class="form-control nombreunidad-sat" readonly>
+
+                  </div>
+                  </div>
+                  {# Oculta los campos hidden como id y comprobante si los hay #}
+                  {{ inline_admin_form.id }}
+                  {{ inline_admin_form.comprobante }}
+                  <button type="button" class="btn btn-danger btn-sm eliminar-concepto mt-2">
+                      <i class="fas fa-trash-alt"></i> Eliminar
+                  </button>
+                  
+              </div>
+              {% endfor %}
+          </div>
+          <div class="card-footer text-end">
+              <button type="button" class="btn btn-success" onclick="agregarConcepto()">
+              <i class="fas fa-plus"></i> Agregar concepto
+              </button>
+          </div>
+          </div>
+      </div>
+  {% endif %}
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "LadoClientes/pages/base.html" %}
+
+{% block content %}
+{% block extrastyle %}
+    
+{% endblock %}
+    
+
+<body>
+<div class="container mt-4">
+    <h1>Editar Información Fiscal</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <!-- Información Fiscal -->
+        <fieldset class="border p-3 mt-3">
+            <legend class="w-auto px-2">Información Fiscal</legend>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.nombre.label_tag }} {{ form.nombre }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.rfc.label_tag }} {{ form.rfc }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.curp.label_tag }} {{ form.curp }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.razon_social.label_tag }} {{ form.razon_social }}
+                        <div style="background-color: #dbfefc;font-size: 12.5px;">
+                        Mantenga presionada "Control", o "Command" en una Mac, para seleccionar más de uno.
+                        </div>
+                        
+                    </div>
+                    <div class="form-group">
+                        {{ form.regimen_fiscal.label_tag }} {{ form.regimen_fiscal }}
+                    </div>
+                    <div class="form-group">
+                        {{ form.regimen_receptor.label_tag }} {{ form.regimen_receptor }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.imagen.label_tag }} {{ form.imagen }}
+                    </div>
+                    <div class="form-group form-check">
+                        {{ form.confirmar_datos_cfdi }} {{ form.confirmar_datos_cfdi.label_tag }}
+
+                        <div style="background-color: #dbfefc;font-size: 12.5px;">
+                        
+                        Habilite el campo de "Validar para CFDI 4.0" para confirmar que el régimen fiscal, razón social y código postal son idénticos a la Constancia de Situación Fiscal,
+                        en caso de que aparezca la razón social con la sociedad mercantil( SA DE CV, etc) deberá habilitar el campo de "Ignorar validación de Soc. Mercantil".
+                    </div>
+                    </div>
+                    <div class="form-group form-check">
+                        {{ form.ignorar_validacion_sociedad }} {{ form.ignorar_validacion_sociedad.label_tag }}
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        
+        <!-- Domicilio -->
+        <fieldset class="border p-3 mt-3">
+            <legend class="w-auto px-2">Domicilio</legend>
+
+            <div style="background-color: #dbfefc;font-size: 12.5px;">
+            - Los datos de contacto nos permitirán comunicarnos con usted, ya sea para atención y seguimiento de soporte, comunicados y notificaciones del sistema.
+            <br>
+            - El correo electrónico se mostrará en los correos de las facturas que emita a sus clientes, para que se puedan comunicar directamente con usted ante cualquier duda respecto de dichas facturas.
+            <br>
+            - Si no esta de acuerdo en el uso que se menciona anteriormente, por favor deje los campos en blanco.
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.calle.label_tag }} {{ form.calle }}
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        {{ form.numero_exterior.label_tag }} {{ form.numero_exterior }}
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        {{ form.numero_interior.label_tag }} {{ form.numero_interior }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.colonia.label_tag }} {{ form.colonia }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.ciudad.label_tag }} {{ form.ciudad }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.municipio.label_tag }} {{ form.municipio }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.estado.label_tag }} {{ form.estado }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        {{ form.pais.label_tag }} {{ form.pais }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        {{ form.codigo_postal.label_tag }} {{ form.codigo_postal }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        {{ form.referencia.label_tag }} {{ form.referencia }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        {{ form.clave_pais.label_tag }} {{ form.clave_pais }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.residencia_fiscal.label_tag }} {{ form.residencia_fiscal }}
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Datos de Contacto -->
+        <fieldset class="border p-3 mt-3">
+            <legend class="w-auto px-2">Datos de Contacto</legend>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.telefono.label_tag }} {{ form.telefono }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.correo_electronico.label_tag }} {{ form.correo_electronico }}
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary mt-3">Guardar</button>
+    </form>
+</div>
+</body>
+{% endblock %}

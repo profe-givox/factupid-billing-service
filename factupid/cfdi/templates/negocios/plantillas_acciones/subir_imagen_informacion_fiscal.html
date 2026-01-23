@@ -1,0 +1,12 @@
+{% extends 'cfdi/layout.html' %}
+
+{% block content %}
+  <h2>Subir Imagen para {{ info_fiscal.nombre }}</h2>
+  
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="imagen">Imagen:</label>
+    <input type="file" name="imagen" id="imagen" required>
+    <button type="submit" class="btn btn-success">Subir Imagen</button>
+  </form>
+{% endblock %}

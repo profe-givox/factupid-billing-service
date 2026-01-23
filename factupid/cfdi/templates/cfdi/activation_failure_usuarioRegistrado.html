@@ -1,0 +1,93 @@
+{% extends "cfdi/layout.html" %}
+
+{% block content %}
+<style>
+    .red-text {
+        color: red;
+    }
+
+    .form-control {
+        display: block;
+        width: 50%;
+    }
+    .text-danger {
+        display: none;  /* Ocultar inicialmente los mensajes de error */
+    }
+
+ 
+</style>
+
+<div class="container">
+    <div class="arial">
+        <h1 class="display-4 red-text " style="font-size: 1.2em;">⚠️ usuario no registrado</h1>        
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 col-sm-12">
+            <section id="loginForm">
+                <form action="{% url 'cfdi:iniciosesion' %}" method="post" class="form-horizontal">
+                    {% csrf_token %}
+                    <h4>Inicia sesión con tu cuenta.</h4>
+                    <hr />
+                    <div class="form-group">
+                        <label for="identifier" class="control-label">Correo electrónico</label>
+                        <div>
+                            <input type="email" name="identifier" id="identifier" class="form-control" >
+                            <small id="identifier-error" class="text-danger">Por favor, ingresa tu correo electrónico.</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_password" class="control-label">Contraseña</label>
+                        <div>
+                            <input type="password" name="password" id="id_password" class="form-control" >
+                            <small id="password-error" class="text-danger">Por favor, ingresa tu contraseña.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <div>
+                            <input type="submit" value="Iniciar sesión" class="btn btn-default" />
+                            <a href="{% url 'cfdi:reset_password' %}" class="btn btn-primary">Olvidaste tu contraseña?</a>
+                        </div>
+                    </div>
+                    {% if form.errors %}
+                    <p class="validation-summary-errors">Por favor, ingresa tu correo electrónico y contraseña correctos.</p>
+                    {% endif %}
+                </form>
+            </section>
+        </div>
+        <div class="col-md-4 col-sm-12">
+            <section id="socialLoginForm"></section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    {% load static %}
+    <script>
+        $(document).ready(function() {
+            $('#loginForm').on('submit', function(event) {
+                let valid = true;
+                if ($('#identifier').val().trim() === '') {
+                    $('#identifier-error').show();
+                    valid = false;
+                } else {
+                    $('#identifier-error').hide();
+                }
+                if ($('#id_password').val().trim() === '') {
+                    $('#password-error').show();
+                    valid = false;
+                } else {
+                    $('#password-error').hide();
+                }
+                if (!valid) {
+                    event.preventDefault();  // Evita el envío del formulario
+                }
+            });
+        });
+    </script>
+{% endblock %}

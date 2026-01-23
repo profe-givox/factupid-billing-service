@@ -1,0 +1,65 @@
+{% extends "console/layout.html" %}
+
+{% load breadcrumbs %}
+{% block breadcrumbs %}
+    {% breadcrumb_url "Inicio" "inicio" %}
+    {% breadcrumb "registrarse"  %}
+   
+{% endblock %}
+{% block content %}
+
+<style>
+    /* Estilos CSS personalizados para el formulario */
+    .custom-form {
+        margin-top: -20px; /* Ajusta la distancia del formulario hacia arriba o abajo */
+    }
+
+    .custom-form form {
+        width: 300px;
+        margin: 0 auto;
+    }
+
+    .custom-form .form-group {
+        margin-bottom: 20px; /* Ajusta el espacio entre los elementos del formulario */
+    }
+
+    .custom-form label {
+        display: block;
+        margin-bottom: 5px;
+    }
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 offset-md-3 custom-form text-center"> <!-- Añade la clase text-center -->
+            <h2>Registro</h2>
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_email">Correo electrónico:</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <small class="text-danger">{{ form.email.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_password1">Contraseña:</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}
+                        <small class="text-danger">{{ form.password1.errors }}</small>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_password2">Confirmar contraseña:</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}
+                        <small class="text-danger">{{ form.password2.errors }}</small>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary">Registrarse</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

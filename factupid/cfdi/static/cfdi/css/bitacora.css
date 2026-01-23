@@ -1,0 +1,46 @@
+/* Línea de tiempo vertical */
+.timeline {
+  position: relative;
+  margin-left: 1.5rem;
+  padding-left: 1rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8px; /* Ajusta al centro de los puntos */
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(to bottom, #00c6ff, #0072ff);
+  border-radius: 10px;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+
+/* Cada evento */
+.timeline li {
+  position: relative;
+  padding-left: 2.5rem;
+}
+
+/* Punto circular */
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -1.1rem;  /* posición respecto a la línea */
+  top: 0.35rem;
+  width: 14px;
+  height: 14px;
+  background-color: #fff;
+  border: 4px solid #0072ff;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* Mapa embebido ajustado */
+.timeline iframe {
+  border-radius: 8px;
+  min-height: 300px;
+}

@@ -1,0 +1,380 @@
+{% extends 'console/layout.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<style>
+/* Estilos específicos para la sección legal */
+.legal {
+  font: 77%/1.5 Arial, Helvetica, sans-serif;
+  color: #333; /* Color de texto ligeramente oscuro para mejor legibilidad */
+  line-height: 1.6; /* Aumenta el espaciado entre líneas */
+  margin: 0 auto;
+  max-width: 800px; /* Limita el ancho del texto para mejorar la legibilidad */
+  padding: 20px;
+}
+
+/* Encabezado principal */
+.legal h1 {
+  text-align: center;
+  font-size: 1.8em;
+  margin-bottom: 0.5em;
+  color: #1a73e8; /* Color para destacar el título */
+}
+
+/* Encabezados secundarios */
+.legal h2, .legal h3 {
+  font-size: 1.4em;
+  margin-top: 1em;
+  color: #1a73e8; /* Color para consistencia */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Párrafos de texto */
+.legal p {
+  text-align: justify;
+  margin-bottom: 1em;
+}
+
+/* Listas ordenadas y no ordenadas */
+.legal ol, .legal ul {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+.legal ol {
+  list-style-type: decimal;
+}
+
+.legal ul {
+  list-style-type: disc;
+}
+
+/* Listas anidadas */
+.legal ul ul {
+  list-style-type: circle;
+  margin-left: 1em;
+  padding-left: 1em;
+}
+
+/* Resaltar términos importantes */
+.legal .highlight {
+  font-weight: bold;
+  color: #d32f2f; /* Color rojo suave para destacar */
+}
+
+/* Cajas de advertencia o información */
+.legal .note {
+  background-color: #f9f9f9;
+  border-left: 4px solid #1a73e8;
+  padding: 10px;
+  margin: 1em 0;
+  font-style: italic;
+  color: #333;
+}
+
+/* Estilos para enlaces */
+.legal a {
+  color: #1a73e8;
+  text-decoration: none;
+}
+
+.legal a:hover {
+  text-decoration: underline;
+}
+
+</style>
+<div id="content">
+
+  <div class="legal">
+    <h1>Términos y Condiciones del Sitio Web de FACTUPID.COM</h1>
+    <p>
+      Lea estos términos detenidamente antes de usar u obtener acceso al sitio web "FACTUPID.COM" o
+      a cualquiera de los materiales contenidos en este sitio web, o enlazados con el mismo. Si no acepta estos
+      términos y condiciones, es posible que no pueda obtener acceso ni usar de alguna otra forma este sitio ni
+      ninguna parte del mismo. Al presionar el botón "Aceptar" al ser presentados estos términos de manera
+      automática, y al usar de forma continua el sitio, y/o al inducir el uso de este sitio electrónicamente o a
+      través de otros medios, usted indica que ha leído y acepta estos términos y condiciones.
+      FACTUPID se reserva el derecho de actualizar o revisar estos términos y condiciones sin
+      darle previo aviso; revise estos términos y condiciones periódicamente para enterarse de los cambios. Su uso
+      continuo de este sitio después de la publicación de algún cambio en estos términos y condiciones indica que
+      usted acepta dichos cambios.
+    </p>
+    <p>
+      Estos Términos y Condiciones de uso rigen su utilización del sitio de FACTUPID y su acceso
+      a éste, y constituyen un contrato vinculante ("Acuerdo") por y entre FACTUPID SA de CV, una empresa
+      mexicana con sede principal en Yunta 309 Col Campestre Tarimbaro, C.P. 58000 de la Ciudad de Tarimbaro Michoacán, México y usted. Lea este Acuerdo detenidamente. Al
+      hacer clic en el botón ACEPTAR al ser presentados estos términos de manera automática, y al usar este Sitio de
+      FACTUPID y/o al inducir el uso de este Sitio de FACTUPID
+      electrónicamente o a través de otros medios, usted indica que acepta el Acuerdo y que usted:
+      </p><ol>
+        <li>
+          Reconoce y acepta que FACTUPID específicamente se exime de toda responsabilidad,
+          pérdida, daño o riesgo que resulte como consecuencia directa o indirecta del Sitio de
+          FACTUPID;
+        </li>
+        <li>
+          Reconoce y acepta que su uso del Sitio de FACTUPID está sujeto a los términos
+          de este Acuerdo, según se modifiquen periódicamente;
+        </li>
+        <li>
+          Que sólo utilizará los materiales contenidos en el Sitio de FACTUPID para fines
+          personales, no comerciales e informativos, y que no modificará ninguno de los materiales contenidos
+          en el sitio de FACTUPID.
+        </li>
+      </ol>
+    <p></p>
+    <h2>1. Conducta del Usuario</h2>
+    <p>
+      Usted acepta cumplir todas las leyes locales, estatales, nacionales e internacionales pertinentes,
+      reglamentos, ordenanzas, normas y reglas y es el único responsable por todas las acciones u omisiones
+      que ocurran como consecuencia de su uso o de su acceso al Sitio de FACTUPID,
+      incluyendo, y sin limitaciones, el contenido de sus transmisiones a través de o hacia el Sitio de
+      FACTUPID. A manera de ejemplo, y no como una limitación, usted acepta no hacer
+      lo siguiente:
+      </p><ol>
+        <li>
+          Usar el Sitio de FACTUPID en relación con cartas en cadena, correo electrónico
+          publicitario, correo electrónico de publicidad indeseada, ni ningún duplicado ni mensajes no
+          solicitados (comerciales o de otra índole);
+        </li>
+        <li>
+          Recopilar, compilar ni diseminar información acerca de terceros, incluyendo las direcciones de
+          correo electrónico, sin consentimiento;
+        </li>
+        <li>
+          Crear una identidad falsa o una dirección de correo electrónico o encabezamiento falsificado,
+          ni intentar de alguna manera engañar a otras personas sobre la identidad del remitente o el origen de un mensaje;
+        </li>
+        <li>
+          Transmitir a través del Sitio de FACTUPID materiales ilegales, hostigantes,
+          difamatorios, abusivos, amenazantes, perjudiciales, vulgares, obscenos, ofensivos o de índole censurable;
+        </li>
+        <li>
+          Transmitir algún material que pudiera infringir los derechos de propiedad intelectual u otros derechos
+          de terceros, incluyendo y sin limitaciones, marcas comerciales, secretos comerciales o derechos de autor;
+        </li>
+        <li>
+          Transmitir algún material que contenga virus, caballos de Troya, gusanos, bombas de tiempo, programas
+          de cancelación, ni ningún otro programa perjudicial o nocivo;
+        </li>
+        <li>
+          Usar el Sitio de FACTUPID para infringir alguna ley pertinente que restrinja la
+          exportación o importación de datos, software o algún otro tipo de contenido;
+        </li>
+        <li>
+          Interferir en, o perturbar, el funcionamiento de las redes conectadas con el Sitio de
+          FACTUPID o infringir las normas, políticas, reglas o procedimientos de tales redes;
+        </li>
+        <li>
+          Obtener o intentar obtener acceso no autorizado al Sitio de FACTUPID, u otras
+          cuentas, sistemas de computadora o redes conectadas con el Sitio de FACTUPID
+          por medio de la búsqueda ilegal de contraseñas ni por ningún otro medio;
+        </li>
+        <li>
+          Interferir en el uso y disfrute del Sitio de FACTUPID por parte de otro miembro;
+        </li>
+        <li>
+          Usar el Sitio de FACTUPID de alguna manera no ética o en contra de las normas 
+          aceptadas en la comunidad; o bien
+        </li>
+        <li>
+          Usar el Sitio de FACTUPID para promocionar negocios en beneficio de alguna empresa
+          o servicio de la competencia.
+        </li>
+      </ol>
+    <p></p>
+    <h2>2. Privacidad de los Miembros</h2>
+    <p>
+      Es la política de FACTUPID respetar la privacidad de los usuarios del Sitio de
+      FACTUPID. La política de privacidad de FACTUPID se presenta en
+      <a href="{% url 'invoice:Politicas' %}">politicas de privacidad</a>
+    </p>
+    <h2>3. Derechos de Propiedad del Contenido</h2>
+    <p>
+      Usted acepta que el contenido, que incluye, sin limitarse a, texto, datos, software, música, sonido,
+      fotografías, videos, gráficos u otros materiales a los que usted tiene acceso al usar el Sitio de
+      FACTUPID, está protegido por derechos de autor, marcas comerciales, marcas de
+      servicio, patentes, secretos industriales, derechos de datos, publicidad o derechos de privacidad u otros
+      derechos y leyes de propiedad intelectual. A menos que se le autorice expresamente, no debe vender,
+      alquilar, modificar, copiar, volver a publicar, transferir o descargar electrónicamente, exhibir,
+      divulgar, transmitir, ni distribuir de ninguna manera el contenido del Sitio de FACTUPID.
+      Usted acepta que toda información provista por FACTUPID o a través de
+      FACTUPID es para fines informativos únicamente y no tiene el fin de ofrecer
+      asesoría profesional.
+    </p>
+    <h2>4. Contenido Provisto por el Usuario</h2>
+    <p>
+      Al publicar o enviar contenido al Sitio de FACTUPID, usted le otorga automáticamente a
+      FACTUPID el derecho a usar, reproducir, presentar, exhibir, adaptar, modificar,
+      distribuir o promover el contenido de cualquier forma y para cualquier fin. Asimismo, usted acepta y
+      garantiza que tiene los derechos de propiedad necesarios para dicho contenido o control sobre dicho
+      contenido y que la publicación y uso del contenido de parte de FACTUPID no infringe
+      ni viola los derechos de ningún tercero. Usted acepta y confirma que es responsable por todo el contenido
+      que publique o envíe.
+    </p>
+    <h2>5. Patrocinios</h2>
+    <p>
+      Todas las marcas comerciales, marcas de servicio y/o nombres comerciales que aparecen en el Sitio de
+      FACTUPID que no son marcas de FACTUPID SA DE CV, son marcas comerciales de
+      sus respectivos propietarios. Las menciones que se hagan de cualquier nombre, marca, producto, o
+      servicios de terceros no constituyen ni implica un patrocinio, promoción o recomendación para dichos
+      terceros o para sus productos o servicios.
+    </p>
+    <h2>6. Suspensión o Denegación de Acceso</h2>
+    <p>
+      FACTUPID puede, sin previo aviso, suspender, desconectar, denegar o restringir su
+      acceso al Sitio de FACTUPID: (a) durante un fallo técnico del Sitio de
+      FACTUPID, o durante la modificación o mantenimiento del mismo; (b) Si usted usa
+      el Sitio de FACTUPID de manera que viole este Acuerdo; o (c) si usted hace algo
+      o deja de hacer algo que en la opinión de FACTUPID pudiera tener como consecuencia
+      el poner en peligro el funcionamiento o la integridad del Sitio de FACTUPID. En
+      caso de ser suspendidos los servicios del cliente u usuario este será el responsable absoluto de
+      salvaguardar todos sus comprobantes fiscales digitales CFDI en su computadora personal, deslindándose
+      de cualquier obligación a FACTUPID de salvaguardar los comprobantes fiscales
+      digitales CFDI del usuario o cliente.
+    </p>
+    <h2>7. Exclusión de Garantías y Limitación de Responsabilidad Civil</h2>
+    <ol>
+      <li>
+        Es posible que el Sitio de FACTUPID contenga enlaces a sitios, recursos
+        y patrocinadores de terceros. La existencia de enlaces a y desde el Sitio de FACTUPID
+        a sitios de terceros no constituye un patrocinio de parte de FACTUPID de ningún sitio,
+        recursos, patrocinadores o contenido de terceros, y FACTUPID no acepta ninguna
+        responsabilidad, directa o indirectamente, por ninguno de esos sitios, recursos, patrocinadores o contenido.
+      </li>
+      <li>
+        FACTUPID no representa ni aprueba la precisión o confiabilidad de ningún consejo,
+        opinión, declaración ni ninguna otra información presentada o distribuida a través del Sitio de
+        FACTUPID. Usted acepta que al confiar en alguna de dichas opiniones, consejos,
+        declaraciones o información, lo hace a riesgo propio.
+      </li>
+      <li>
+        FACTUPID no verifica, y no puede verificar, todos los materiales publicados en
+        el Sitio de FACTUPID por los usuarios, y FACTUPID no es
+        responsable por ninguno de esos materiales.
+      </li>
+      <li>
+        EL SITIO DE FACTUPID, INCLUYENDO TODO EL CONTENIDO, SOFTWARE, FUNCIONES,
+        MATERIALES E INFORMACIÓN QUE EN ÉL SE PRESENTE O AL QUE SE OBTENGA ACCESO A TRAVÉS DEL MISMO
+        SE SUMINISTRA "TAL CUAL". FACTUPID SA DE CV Y SUS SOCIOS NO SE RESPONSABILIZAN NI OFRECEN
+        GARANTÍAS DE NINGÚN TIPO CON RESPECTO A: (1) EL CONTENIDO DEL SITIO DE FACTUPID;
+        (2) LOS MATERIALES, LA INFORMACIÓN O LAS FUNCIONES A LAS CUALES SE OBTENGA ACCESO POR MEDIO DEL
+        SOFTWARE UTILIZADO EN EL SITIO DE FACTUPID O AL CUAL SE OBTENGA ACCESO A TRAVÉS
+        DEL SITIO DE FACTUPID; (3) TODO PRODUCTO O SERVICIO DE TERCEROS O ENLACES A
+        TERCEROS; O (4) TODA VIOLACIÓN A LA SEGURIDAD ASOCIADA CON LA TRANSMISIÓN DE INFORMACIÓN SENSIBLE A
+        TRAVÉS DEL SITIO DE FACTUPID O ALGÚN SITIO ENLAZADO. FACTUPID SA DE CV Y
+        SUS SOCIOS NO ACEPTAN NINGUNA GARANTÍA EXPLICÍTA O IMPLÍCITA, INCLUIDAS, Y SIN LIMITACIONES, LAS DE
+        NO CONTRAVENCIÓN, COMERCIABILIDAD O IDONEIDAD PARA UN DETERMINADO PROPÓSITO. FACTUPID
+        NO GARANTIZA QUE LAS FUNCIONES CONTENIDAS EN EL SITIO DE FACTUPID O ALGÚN MATERIAL O
+        CONTENIDO DEL MISMO ESTARÁN LIBRES DE INTERRUPCIONES O ERRORES, QUE TODOS LOS DEFECTOS SE CORREGIRÁN, O QUE
+        EL SITIO DE FACTUPID O EL SERVIDOR EN EL CUAL FUNCIONA ESTÁ LIBRE DE VIRUS U OTROS
+        COMPONENTES PERJUDICIALES. FACTUPID NO ACEPTA NINGUNA RESPONSABILIDAD POR NINGUNA
+        PÉRDIDA O DAÑO (INCLUIDOS Y SIN LIMITACIONES, PÉRDIDAS O DAÑOS INDIRECTOS, ESPECIALES, O DIRECTOS) QUE
+        RESULTE DEL USO DEL SITIO DE FACTUPID INDEPENDIENTEMENTE DE SI ÉSTOS OCURREN A
+        CONSECUENCIA DE ALGÚN ACTO NEGLIGENTE U OMISIÓN. SI ALGUNA LEY, NORMA O DECISIÓN IMPLICA QUE ALGÚN
+        TÉRMINO O GARANTÍA NO PUEDE EXCLUIRSE, LA ÚNICA RESPONSABILIDAD DE FACTUPID SERÁ,
+        EN EL CASO DE BIENES O SERVICIOS, LA DE VOLVER A SUMINISTRAR LOS BIENES O SERVICIOS, O PAGAR POR EL
+        COSTO DE SUMINISTRAR LOS BIENES O SERVICIOS DE NUEVO.
+      </li>
+      <li>
+        FACTUPID podría ofrecerle a sus miembros herramientas para efectuar transacciones o
+        interactuar de alguna otra manera con terceros, incluyendo individuos. Los miembros deben tomar las
+        medidas apropiadas al suministrar información a dichos terceros o en interacciones de otra índole con tales
+        terceros. Todos los contactos o las interacciones entre usted y terceros se hacen a riesgo suyo, y
+        FACTUPID no tiene ninguna responsabilidad en tales contactos o interacciones.
+      </li>
+    </ol>
+    <h2>8. Indemnización</h2>
+    <p>
+      Por medio de este documento, usted acepta indemnizar, defender y mantener la inmunidad de
+      FACTUPID y todas sus empresas filiales, afiliadas, representantes, directores,
+      propietarios, agentes, empleados, proveedores de información, socios, concesionarios y licenciatarios
+      (colectivamente las "Partes indemnizadas") frente a toda responsabilidad y costo contraído por las Partes
+      indemnizadas en relación con todo reclamo relacionado con alguna infracción de este Acuerdo cometida por
+      usted, todo uso no autorizado del Contenido del sitio o toda infracción cometida por usted de las
+      declaraciones, garantías o cláusulas precedentes, incluidos y sin limitaciones, los gastos y honorarios
+      de los abogados. Usted debe cooperar totalmente según se requiera de manera razonable en defensa de todo
+      reclamo. FACTUPID se reserva el derecho, a cuenta propia, de asumir la defensa y el control
+      exclusivos de cualquier asunto que de otra manera esté sujeto a indemnización de parte suya y usted no debe en
+      ningún caso resolver ningún asunto sin el consentimiento por escrito de FACTUPID.
+    </p>
+    <h2>9. Legislación y Jurisdicción Aplicables</h2>
+    <p>
+      Este Acuerdo, y todos los asuntos que se originen a partir de este Acuerdo o que estén relacionados con el
+      mismo, deberán regirse por las leyes de México, a pesar de su selección de normas legales. Las Partes aceptan
+      que toda acción legal o demanda relacionada con este Acuerdo debe levantarse y presentarse en los tribunales
+      de México, en el sitio correspondiente, y las partes voluntariamente se someten a la jurisdicción de dichos
+      tribunales para tales propósitos.
+    </p>
+    <h2>10. Invalidez</h2>
+    <p>
+      Si una estipulación de este Acuerdo o un derecho o solución aquí incluido no es válido o no se puede hacer
+      cumplir en una jurisdicción particular: (a) debe ser interpretado o excluido en dicha jurisdicción sólo hasta
+      el alcance de la invalidez o la imposibilidad de hacer cumplir la estipulación y (b) no afecta la validez o
+      capacidad de hacer cumplir dicha estipulación en otra jurisdicción o las estipulaciones restantes en
+      cualquier jurisdicción.
+    </p>
+    <h2>11. Renuncia</h2>
+    <p>
+      El uso individual o parcial de un derecho no excluye el uso futuro de dicho derecho o el
+      uso de otro derecho. Si una de las partes no usa un derecho o se retrasa en el uso de dicho derecho,
+      ello no impide el uso de dicho derecho ni funciona como una renuncia. Una renuncia sólo tiene validez
+      en el caso específico y para el propósito específico de su expedición.
+    </p>
+    <h2>12. Derechos</h2>
+    <p>
+      Los derechos y acciones de una de las partes bajo este Acuerdo no excluyen ningún otro derecho ni
+      acción prevista por la ley.
+    </p>
+    <h2>13. Acuerdo Completo</h2>
+    <p>
+      Este Acuerdo es el acuerdo completo entre usted y FACTUPID respecto a los asuntos
+      tratados en este documento. Ninguna interpretación, arreglo, declaración o estipulación que no se haya
+      incluido explícitamente en este documento es vinculante. Toda correspondencia, negociación y otras
+      comunicaciones relacionadas con los asuntos tratados en este documento que antecedan este Acuerdo
+      quedan suspendidos por este documento y se incorporan al mismo.
+    </p>
+    <h2>14. Condiciones de Pago</h2>
+    <ol>
+      <li>
+        Términos de pago. FACTUPID facturará al cliente, en las condiciones establecidas
+        en la Solicitud, por adelantado al periodo dispuesto. Todas las facturas serán pagaderas de acuerdo
+        al medio de pago escogido por el cliente.
+      </li>
+      <li>
+        Consecuencias de la falta de pago. En el caso de que el cliente no pague por los cargos del servicio
+        dentro de los 14 (catorce) días posteriores a la contratación ó renovación, FACTUPID
+        dará por terminados los servicios contratados y será responsabilidad del subscriptor el salvaguardar
+        todos sus comprobantes fiscales digitales CFDI en su computadora personal.
+      </li>
+      <li>
+        Impuestos. Todos los cargos conforme al presente no incluyen impuestos nacionales, provinciales,
+        locales y extranjeros sobre ventas, uso, consumo, servicios públicos, ingresos brutos y valor agregado
+        (IVA) y otros cargos similares tipo gravamen, incluyendo los impuestos relacionados por sobrecarga o
+        aranceles aplicables; los que el cliente está de acuerdo en pagar.
+      </li>
+      <li>
+        Usted dispondrá de 7 días para realizar el pago luego de la fecha de renovación de su servicio, ante el
+        incumplimiento de pago a los seis (6) días de la renovación, se suspenderá su acceso al sistema de
+        FACTUPID.COM temporalmente. Ante la falta de pago a catorce (14) días corridos posteriores a la
+        fecha de renovación, corresponde la suspensión definitiva de su sistema de FACTUPID.COM,
+        con la correspondiente eliminación de toda la información alojada en el sistema por el usuario, dicho
+        esto el usuario o cliente será el responsable absoluto de salvaguardar todos sus comprobantes fiscales
+        digitales CFDI en su computadora personal, deslindándose de cualquier obligación a
+        FACTUPID de salvaguardar los comprobantes fiscales digitales CFDI del usuario o
+        cliente. Si el usuario o cliente desea recibir un respaldo de sus comprobantes fiscales digitales CFDI
+        este tendrá que solicitar vía Ticket, telefónica o vía email a FACTUPID.COM, este respaldo
+        tendrá un costo que se determinara de acuerdo a las tarifas vigentes al día de la solicitud.
+      </li>
+      <li>
+        El pago del servicio se realiza a mes adelantado.
+      </li>
+    </ol>
+    {% comment %} <h2>15. SLA</h2>
+    <p><a href="http://www.finkok.com/sla-acuerdo-nivel-servicios.html">Acuerdo de Nivel de Servicios</a></p> {% endcomment %}
+  </div>
+
+</div>
+
+{% endblock %}

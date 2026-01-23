@@ -1,0 +1,79 @@
+{% extends 'lista.html' %}
+
+{% block content %}
+
+<div class="container mt-4">  <!-- Cambio aquí mt-5 a mt-4 -->
+       
+    {% load invoice_breadcrumbs %}
+    {% block invoice_breadcrumbs %}
+    <nav class="fw-arial" aria-label="breadcrumb" style="background-color: #e3e4e5; padding: 5px; border-radius: 100px; display: inline-block;">
+        {% breadcrumb_url "Inicio" "invoice:inicio" %}
+        {% breadcrumb "listado de firmas" %}
+    </nav>
+       
+    {% endblock %}
+</div>
+
+<br>
+
+<div class="card card-default">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-search"></i>
+            {{ title }}
+        </h3>
+    </div>
+
+    <div class="card-body">
+        <table class="table" id="data">
+            <thead>
+                {% block columns %}
+                    <th scope="col" style="width: 5%;">ID</th>
+                    <th scope="col" style="width: 20%;">NOMBRE</th>
+                    <th scope="col" style="width: 15%;">RFC</th>
+                    <th scope="col" style="width: 20%;">FECHA DE FIRMA</th>
+                    <th scope="col" style="width: 10%;">ESTATUS</th>
+                    <th scope="col" style="width: 20%;">OPCIONES</th>
+                {% endblock %}
+            </thead>
+            <tbody>
+                {% block rows %}
+                    {% for c in contrato_list %}
+                    <tr>
+                        <td>{{ c.id }}</td>
+                        <td>{{ c.Cliente }}</td>
+                        <td>{{ c.Cliente.rfc }}</td>
+                        <td>{{ c.fecha|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if c.estado_firma == 'true' %}
+                                <i class="fas fa-check-circle" style="color: green;"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle" style="color: red;"></i>
+                            {% endif %}</td>
+
+                        <td>
+                            {% if c.estado_firma == 'true' %}
+                                <!-- Enlaces de descarga -->
+                                <a href="{% url 'invoice:descargar_contrato_pdf' c.id %}" class="btn btn-danger btn-xs btn-flat">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </a>
+                                <a href="{% url 'invoice:descargar_contrato_xml' c.id %}" class="btn btn-secondary btn-xs btn-flat">
+                                    <i class="fas fa-file-code"></i> XML
+                                </a>
+                                <a href="{% url 'invoice:send_contractArchivos_email' c.id %}" class="btn btn-warning btn-xs btn-flat">
+                                    <i class="fas fa-envelope" title="Enviar contrato"></i> E-mail
+                                </a>
+                            {% else %}
+                            <a href="{% url 'invoice:send_contract_email' c.id %}" class="btn btn-warning btn-xs btn-flat">
+                                <i class="fas fa-envelope" title="Enviar contrato"></i> E-mail
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% endblock %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

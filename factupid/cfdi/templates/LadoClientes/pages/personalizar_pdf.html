@@ -1,0 +1,381 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  <link rel="stylesheet" href="{% static 'librerias/bootstrap/bootstrap.min.css' %}" />
+  <link rel="stylesheet" href="{% static 'librerias/grapesjs/grapes.min.css' %}" />
+  <link rel="stylesheet" href="{% static 'librerias/styles.css' %}" />
+  <style>
+    .pdf-builder-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .pdf-builder-actions button {
+      min-width: 130px;
+    }
+    #pdf-builder-canvas {
+      border: 1px dashed #dee2e6;
+      background: #f8f9fa;
+      min-height: 70vh;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .panel-espacio {
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    /* Vista previa con estilo CFDI */
+    .gjs-cv-canvas iframe {
+      background: #fff;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container-fluid py-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="pdf-builder-header">
+          <div>
+            <h4 class="mb-1">Editor de PDF personalizado</h4>
+            <p class="text-muted mb-0">Arrastra y suelta componentes para diseñar tu comprobante.</p>
+          </div>
+          <div class="pdf-builder-actions d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <label class="mb-0 small text-muted" for="select-plantillas">Plantillas</label>
+              <select id="select-plantillas" class="form-select" style="min-width: 200px;">
+                <option value="">Comprobante base</option>
+                {% for plantilla in plantillas %}
+                  <option value="{{ plantilla.id }}">{{ plantilla.name }}{% if plantilla.is_default %} (default){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <input type="text" id="nombre-plantilla" class="form-control" placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="1" id="plantilla-default">
+              <label class="form-check-label" for="plantilla-default">Usar como default</label>
+            </div>
+            <button id="btn-guardar" class="btn btn-success"><i class="bi bi-save me-1"></i>Guardar</button>
+            <button id="btn-exportar" class="btn btn-primary"><i class="bi bi-download me-1"></i>Exportar PDF</button>
+            <button id="btn-limpiar" class="btn btn-outline-secondary"><i class="bi bi-eraser me-1"></i>Limpiar lienzo</button>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-lg-3">
+            <div class="card h-100">
+              <div class="card-header pb-2">
+                <h6 class="mb-0">Elementos</h6>
+                <small class="text-muted">Selecciona y arrastra al lienzo</small>
+              </div>
+              <div id="pdf-builder-blocks" class="card-body panel-espacio"></div>
+            </div>
+          </div>
+          <div class="col-lg-9">
+            <div class="card">
+              <div class="card-header pb-2">
+                <h6 class="mb-0">Lienzo de diseño</h6>
+                <small class="text-muted">Visualiza el diseño final del PDF</small>
+              </div>
+              <div class="card-body p-0">
+                <div id="pdf-builder-canvas"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'librerias/bootstrap/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'librerias/grapesjs/grapes.min.js' %}"></script>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  {{ base_html|json_script:"base-html" }}
+  {{ base_css|json_script:"base-css" }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const baseHtml = JSON.parse(document.getElementById('base-html').textContent || '""');
+      const baseCss = JSON.parse(document.getElementById('base-css').textContent || '""');
+      const editor = grapesjs.init({
+        container: '#pdf-builder-canvas',
+        height: '72vh',
+        fromElement: true,
+        storageManager: false,
+        blockManager: { appendTo: '#pdf-builder-blocks' },
+        styleManager: { appendTo: '#style-manager' },
+        canvas: {
+          styles: [
+            '{% static 'librerias/bootstrap/bootstrap.min.css' %}',
+            '{% static 'librerias/styles_grapesjs.css' %}',
+            '{% static 'librerias/satcfdi/_style.css' %}'
+          ]
+        },
+      });
+
+      {% verbatim %}
+      const bm = editor.BlockManager;
+      const camposComprobante = [
+        {
+          id: 'campo-tipo-comprobante',
+          label: '<i class="bi bi-badge-ad"></i> Tipo comprobante',
+          content: '<h4 style="margin:0;">CFDI de {{ c.TipoDeComprobante | desc }}</h4>',
+        },
+        {
+          id: 'campo-serie',
+          label: '<i class="bi bi-upc-scan"></i> Serie',
+          content: '<div><strong>Serie:</strong> {{ c.Serie }}</div>',
+        },
+        {
+          id: 'campo-folio',
+          label: '<i class="bi bi-qr-code"></i> Folio',
+          content: '<div><strong>Folio:</strong> {{ c.Folio }}</div>',
+        },
+        {
+          id: 'campo-fecha',
+          label: '<i class="bi bi-calendar-date"></i> Fecha emisión',
+          content: '<div><strong>Fecha de emisión:</strong> {{ c.Fecha }}</div>',
+        },
+        {
+          id: 'campo-lugar-expedicion',
+          label: '<i class="bi bi-geo-alt"></i> Lugar expedición',
+          content: '<div><strong>Lugar de expedición:</strong> {{ c.LugarExpedicion | code }}</div>',
+        },
+        {
+          id: 'campo-emisor',
+          label: '<i class="bi bi-building"></i> Datos emisor',
+          content: '<div><strong>Emisor:</strong> {{ c.Emisor.Nombre }} — RFC {{ c.Emisor.Rfc }} ({{ c.Emisor.RegimenFiscal | desc }})</div>',
+        },
+        {
+          id: 'campo-receptor',
+          label: '<i class="bi bi-person-badge"></i> Datos receptor',
+          content: '<div><strong>Receptor:</strong> {{ c.Receptor.Nombre }} — RFC {{ c.Receptor.Rfc }} ({{ c.Receptor.RegimenFiscalReceptor | desc }})</div>',
+        },
+        {
+          id: 'campo-uso-cfdi',
+          label: '<i class="bi bi-receipt"></i> Uso CFDI',
+          content: '<div><strong>Uso CFDI:</strong> {{ c.Receptor.UsoCFDI | desc }}</div>',
+        },
+        {
+          id: 'campo-moneda',
+          label: '<i class="bi bi-cash-coin"></i> Moneda',
+          content: '<div><strong>Moneda:</strong> {% if c.Moneda != "XXX" %}{{ c.Moneda }}{% else %}{{ "XXX" }}{% endif %}</div>',
+        },
+        {
+          id: 'campo-metodo-pago',
+          label: '<i class="bi bi-credit-card"></i> Método de pago',
+          content: '<div><strong>Método de pago:</strong> {{ c.MetodoPago | desc }}</div>',
+        },
+        {
+          id: 'campo-forma-pago',
+          label: '<i class="bi bi-wallet2"></i> Forma de pago',
+          content: '<div><strong>Forma de pago:</strong> {{ c.FormaPago | desc }}</div>',
+        },
+        {
+          id: 'campo-tipo-cambio',
+          label: '<i class="bi bi-arrow-left-right"></i> Tipo cambio',
+          content: '<div><strong>Tipo de cambio:</strong> {{ c.TipoCambio }}</div>',
+        },
+        {
+          id: 'campo-exportacion',
+          label: '<i class="bi bi-box-arrow-up"></i> Exportación',
+          content: '<div><strong>Exportación:</strong> {{ c.Exportacion | desc }}</div>',
+        },
+        {
+          id: 'campo-condiciones',
+          label: '<i class="bi bi-list-check"></i> Condiciones de pago',
+          content: '<div><strong>Condiciones de pago:</strong> {{ c.CondicionesDePago }}</div>',
+        },
+        {
+          id: 'campo-informacion-global',
+          label: '<i class="bi bi-globe"></i> Información global',
+          content: '<div><strong>Factura global:</strong> Periodicidad {{ c.InformacionGlobal.Periodicidad | desc }}, Mes {{ c.InformacionGlobal.Meses | desc }}, Año {{ c.InformacionGlobal.Año }}</div>',
+        },
+        {
+          id: 'campo-complementos',
+          label: '<i class="bi bi-puzzle"></i> Complementos',
+          content: '<div>{{ complements(c, c.Complemento) }}</div>',
+        },
+        {
+          id: 'campo-addenda',
+          label: '<i class="bi bi-stickies"></i> Addenda',
+          content: '<div>{{ complements(c, c.Addenda) }}</div>',
+        },
+      ];
+
+      camposComprobante.forEach((campo) => {
+        bm.add(campo.id, {
+          ...campo,
+          category: 'Campos CFDI',
+          attributes: { class: 'gjs-block' },
+        });
+      });
+      {% endverbatim %}
+      bm.add('titulo', {
+        label: '<i class="bi bi-type-h1"></i> Título',
+        attributes: { class: 'gjs-block' },
+        content: '<h2 style="margin:0;">Título del comprobante</h2>'
+      });
+      bm.add('parrafo', {
+        label: '<i class="bi bi-text-left"></i> Párrafo',
+        content: '<p style="margin:0;">Detalle o descripción del comprobante.</p>'
+      });
+      bm.add('tabla', {
+        label: '<i class="bi bi-table"></i> Tabla',
+        content: `<table class="table table-sm table-bordered mb-0">
+          <thead class="table-light"><tr><th>Concepto</th><th>Cantidad</th><th>Importe</th></tr></thead>
+          <tbody><tr><td>Ejemplo</td><td>1</td><td>$0.00</td></tr></tbody>
+        </table>`
+      });
+      bm.add('imagen', {
+        label: '<i class="bi bi-image"></i> Imagen',
+        content: '<img class="img-fluid" src="https://via.placeholder.com/600x200?text=Logotipo" alt="Imagen">'
+      });
+      bm.add('pie', {
+        label: '<i class="bi bi-signpost"></i> Pie de página',
+        content: '<footer style="border-top:1px solid #dee2e6; padding-top:8px; font-size:12px;">Gracias por su preferencia.</footer>'
+      });
+
+      const btnExportar = document.getElementById('btn-exportar');
+      const btnLimpiar = document.getElementById('btn-limpiar');
+      const btnGuardar = document.getElementById('btn-guardar');
+      const nombreInput = document.getElementById('nombre-plantilla');
+      const defaultCheckbox = document.getElementById('plantilla-default');
+      const selectPlantillas = document.getElementById('select-plantillas');
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      let plantillaSeleccionada = '';
+
+      const restablecerBase = () => {
+        editor.setComponents(baseHtml || '');
+        editor.setStyle(baseCss || '');
+      };
+
+      restablecerBase();
+
+      btnExportar.addEventListener('click', () => {
+        const html = editor.getHtml();
+        const css = editor.getCss();
+        const formData = new FormData();
+        formData.append('html', html);
+        formData.append('css', css);
+        formData.append('nombre', nombreInput.value || 'Plantilla PDF');
+        formData.append('is_default', defaultCheckbox.checked ? '1' : '0');
+        if (plantillaSeleccionada) {
+          formData.append('plantilla_id', plantillaSeleccionada);
+        }
+
+        fetch('{% url "mi_admin:exportar_pdf_personalizado" %}', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken },
+          body: formData
+        }).then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const mensaje = data.error || 'No se pudo generar el PDF';
+            alert(mensaje);
+            return;
+          }
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${nombreInput.value || 'plantilla'}.pdf`;
+          link.click();
+          window.URL.revokeObjectURL(url);
+        }).catch(() => {
+          alert('Ocurrió un error al exportar el PDF');
+        });
+      });
+
+      btnLimpiar.addEventListener('click', () => {
+        editor.DomComponents.clear();
+        editor.CssComposer.clear();
+        restablecerBase();
+        selectPlantillas.value = '';
+        nombreInput.value = '';
+        defaultCheckbox.checked = false;
+      });
+
+      btnGuardar.addEventListener('click', () => {
+        const html = editor.getHtml();
+        const css = editor.getCss();
+        const formData = new FormData();
+        formData.append('html', html);
+        formData.append('css', css);
+        formData.append('nombre', nombreInput.value || 'Plantilla PDF');
+        formData.append('is_default', defaultCheckbox.checked ? '1' : '0');
+        if (plantillaSeleccionada) {
+          formData.append('plantilla_id', plantillaSeleccionada);
+        }
+
+        fetch('{% url "mi_admin:guardar_pdf_personalizado" %}', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken },
+          body: formData
+        }).then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.success) {
+            const mensaje = data.error || 'No se pudo guardar la plantilla';
+            alert(mensaje);
+            return;
+          }
+          plantillaSeleccionada = data.id.toString();
+          nombreInput.value = data.name;
+          defaultCheckbox.checked = !!data.is_default;
+          await refrescarListado();
+          alert('Plantilla guardada correctamente');
+        }).catch(() => alert('Ocurrió un error al guardar la plantilla'));
+      });
+
+      const refrescarListado = async () => {
+        const response = await fetch('{% url "mi_admin:listar_pdf_personalizado" %}');
+        if (!response.ok) return;
+        const plantillas = await response.json().catch(() => []);
+        const valorActual = plantillaSeleccionada;
+        selectPlantillas.innerHTML = '<option value="">Comprobante base</option>';
+        plantillas.forEach((p) => {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = `${p.name}${p.is_default ? ' (default)' : ''}`;
+          selectPlantillas.appendChild(option);
+        });
+        selectPlantillas.value = valorActual;
+      };
+
+      const cargarPlantilla = (id) => {
+        if (!id) {
+          plantillaSeleccionada = '';
+          nombreInput.value = '';
+          defaultCheckbox.checked = false;
+          restablecerBase();
+          return;
+        }
+
+        fetch(`{% url "mi_admin:obtener_pdf_personalizado" 0 %}`.replace('0', id))
+          .then((response) => response.json())
+          .then((data) => {
+            plantillaSeleccionada = data.id.toString();
+            nombreInput.value = data.name || '';
+            defaultCheckbox.checked = !!data.is_default;
+            editor.setComponents(data.html || '');
+            editor.setStyle(data.css || '');
+          })
+          .catch(() => {
+            alert('No se pudo cargar la plantilla seleccionada');
+            selectPlantillas.value = '';
+            restablecerBase();
+          });
+      };
+
+      selectPlantillas.addEventListener('change', (e) => {
+        cargarPlantilla(e.target.value);
+      });
+
+      refrescarListado();
+    });
+  </script>
+{% endblock %}

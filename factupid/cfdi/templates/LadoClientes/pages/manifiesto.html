@@ -1,0 +1,223 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .manifesto-wrapper {
+      position: relative;
+      min-height: calc(100vh - 120px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(8, 92, 201, 0.15), rgba(5, 40, 85, 0.45));
+      padding: 3rem 1rem;
+    }
+
+    .manifesto-card {
+      background: #ffffff;
+      box-shadow: 0 15px 40px rgba(5, 40, 85, 0.25);
+      border-radius: 8px;
+      max-width: 720px;
+      width: 100%;
+      padding: 2.5rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .manifesto-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(8, 92, 201, 0.08), transparent 55%);
+      pointer-events: none;
+    }
+
+    .manifesto-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .manifesto-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: #052855;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    .manifesto-title {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #052855;
+    }
+
+    .manifesto-subtitle {
+      font-size: 0.95rem;
+      color: #4a5568;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .manifesto-body {
+      background: rgba(8, 92, 201, 0.06);
+      border: 1px solid rgba(8, 92, 201, 0.12);
+      border-radius: 8px;
+      padding: 1.5rem;
+      color: #1a202c;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .manifesto-body strong {
+      color: #052855;
+    }
+
+    .manifesto-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .manifesto-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .manifesto-actions .form-check {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin: 0;
+      font-weight: 600;
+      color: #052855;
+    }
+
+    .manifesto-actions .form-check-input {
+      width: 1.25rem;
+      height: 1.25rem;
+      border-color: #052855;
+    }
+
+    .manifesto-actions .btn-primary {
+      align-self: flex-end;
+      padding: 0.65rem 2.5rem;
+      font-weight: 600;
+      background: #052855;
+      border-color: #052855;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .manifesto-actions .btn-primary:disabled {
+      background: #90a4c3;
+      border-color: #90a4c3;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .manifesto-actions .btn-primary:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(5, 40, 85, 0.25);
+    }
+
+    @media (max-width: 576px) {
+      .manifesto-card {
+        padding: 2rem 1.25rem;
+      }
+
+      .manifesto-title {
+        font-size: 1.5rem;
+      }
+
+      .manifesto-body {
+        font-size: 0.9rem;
+      }
+
+      .manifesto-actions .btn-primary {
+        width: 100%;
+      }
+    }
+  </style>
+{% endblock extrastyle %}
+
+{% block content %}
+  <div class="manifesto-wrapper">
+    <div class="manifesto-card">
+      <div class="manifesto-header">
+        <div class="manifesto-logo">T</div>
+        <div>
+          <h1 class="manifesto-title">Manifiesto</h1>
+          <p class="manifesto-subtitle mb-0">
+            Sitio oficial de TECHFIDG SOLUTIONS, S.A. de C.V.para la firma del manifiesto
+          </p>
+        </div>
+      </div>
+
+      <div class="manifesto-body">
+        <p class="mb-2"><strong>TECHFIDG SOLUTIONS, S.A. de C.V</strong></p>
+        <p class="mb-3">#, Col.</p>
+        <p class="mb-3"><strong>Estimado Cliente:</strong></p>
+        <p class="mb-3">
+          Con base en el cumplimiento de las disposiciones fiscales para el ejercicio fiscal vigente, es necesario que firme el contrato, para prestarnos su servicio de administración de comprobantes fiscales digitales por internet, con el Centro de Validación Digital CVD8A, S.A. de C.V. nombre comercial TECHFIDG SOLUTIONS, S.A. de C.V, con el cual lo pedimos todos con carácter obligatorio. Si usted ya firmó, por favor proporcione el contrato, manifestación o convenio firmado, y una vez más, siga las instrucciones para su firma y la generación de su contraseña de firmado.
+        </p>
+        <p class="mb-0">Le solicitamos lo anterior, de lo cual quedamos en espera, y una vez más, siga las instrucciones para su firma y generacion de su contraseña.</p>
+      </div>
+
+      <div class="manifesto-footer">
+        <div class="manifesto-actions">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="1" id="manifestoAccept">
+            <label class="form-check-label" for="manifestoAccept">
+              Acepto
+            </label>
+          </div>
+          <button
+            id="manifestoContinue"
+            class="btn btn-primary"
+            type="button"
+            disabled
+            data-next-url="{% url 'mi_admin:manifiesto_contrato_wizard' %}"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const checkbox = document.getElementById('manifestoAccept');
+      const button = document.getElementById('manifestoContinue');
+      if (!checkbox || !button) {
+        return;
+      }
+
+      const toggleButton = function () {
+        button.disabled = !checkbox.checked;
+      };
+
+      checkbox.addEventListener('change', toggleButton);
+      button.addEventListener('click', function () {
+        if (!button.disabled && button.dataset.nextUrl) {
+          window.open(button.dataset.nextUrl, '_blank', 'noopener,noreferrer');
+        }
+      });
+      toggleButton();
+    });
+  </script>
+{% endblock extra_js %}

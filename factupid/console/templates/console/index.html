@@ -1,0 +1,29 @@
+{% extends "console/layout.html" %}
+{% load static %} <!-- Cargar la etiqueta static -->
+
+{% block content %}
+<style>
+.custom-light {
+    background-color: #ebeaea;
+}
+
+.col-md-3 {
+    background-color: #ebeaea;
+    margin-inline: 6px;
+    margin-bottom: 6px;
+    justify-content: center;
+}
+</style>
+
+<div class="container custom-light">
+    <div class="jumbotron custom-light-gray">
+        <h1 class="display-4">Factupid</h1>
+        <p class="lead">Ofrecemos soluciones de TI, que abarca software SaaS, Infraestructura, servicios de 
+            administración de sistemas junto con el diseño y desarrollo de software.</p>
+        <p><a href="https://www.djangoproject.com/" class="btn btn-primary btn-lg">Saber más &raquo;</a></p>
+    </div>
+</div>
+
+
+
+{% endblock %}

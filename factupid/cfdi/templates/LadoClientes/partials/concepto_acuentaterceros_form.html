@@ -1,0 +1,30 @@
+<!-- concepto_acuentaterceros_form.html -->
+
+<div class="formulario-acuentaterceros mb-4 border rounded p-3 position-relative">
+  <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 btn-eliminar-complemento" title="Eliminar complemento">
+    <i class="fas fa-trash-alt"></i> <!-- Usa el ícono que prefieras -->
+  </button>
+  <h4>A Cuenta de Terceros</h4>
+  <div class="row">
+    <div class="col-md-3 mb-2">
+      <label>RFC</label>
+      {{ form.rfcACuentaTerceros }}
+    </div>
+    <div class="col-md-3 mb-2">
+      <label>Nombre</label>
+      {{ form.nombreACuentaTerceros }}
+    </div>
+    <div class="col-md-3 mb-2">
+      <label>Régimen Fiscal</label>
+      {{ form.c_RegimenFiscalACuentaTerceros }}
+    </div>
+    <div class="col-md-3 mb-2">
+      <label>Código Postal Fiscal</label>
+      {{ form.domicilioFiscalACuentaTerceros }}
+    </div>
+  </div>
+
+  {{ form.non_field_errors }}
+  {{ form.media }}
+</div>
+

@@ -1,0 +1,12 @@
+<div class="formulario-addenda-siemens mb-4 border rounded p-3">
+    <h4>Waldos</h4>
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label class="form-label">No. orden de compra</label>
+        {{ form.numero_orden }}
+      </div>
+    {# Si tienes campos ocultos o errores no ligados a campos #}
+    {{ form.non_field_errors }}
+    {{ form.media }}
+</div>
+  

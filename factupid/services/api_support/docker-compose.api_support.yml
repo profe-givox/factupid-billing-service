@@ -1,0 +1,45 @@
+version: "3.9"
+
+postgres:
+  image: postgres:17
+  container_name: api_support_postgres
+  restart: always
+  environment:
+    - POSTGRES_USER=api_support_user
+    - POSTGRES_PASSWORD=api_support_user_pa$$word
+    - POSTGRES_DB=api_support_db
+    - TZ=America/Mexico_City
+    - PGTZ=America/Mexico_City
+  command: ["-c", "max_connections=300"]
+  ports:
+    - "5433:5432"
+  volumes:
+    - pgdata:/var/lib/postgresql/data
+  networks:
+    - apis_net
+  deploy:
+    resources:
+      limits:
+        cpus: '0.50'
+        memory: 12G
+      reservations:
+        cpus: '0.1'
+        memory: 1024M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+
+api_support:
+  build: ./services/api_support
+  container_name: api_support
+  env_file: .env
+  depends_on:
+    - api_support_postgres
+  networks:
+    - apis_net
+
+volumes:
+  pgdata:

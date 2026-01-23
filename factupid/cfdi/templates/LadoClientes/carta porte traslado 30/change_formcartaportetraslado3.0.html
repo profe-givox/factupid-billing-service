@@ -1,0 +1,1370 @@
+{% extends "LadoClientes/forms/change_formFacturas_Base.html" %}
+
+
+{%block extrastyle%}
+<style>
+textarea#id_mercancias-0-descripcion_embalaje {
+    width: 30em;
+}
+
+textarea#id_mercancias-0-descripcion_material_peligroso {
+    width: 30em;
+}
+
+textarea#id_mercancias-0-descripcion_fraccion_arancelaria {
+    width: 30em;
+}
+
+textarea#id_mercancias-0-datos_fabricante {
+    width: 30em;
+}
+textarea#id_mercancias-0-datos_formulador {
+    width: 30em;
+}
+textarea#id_mercancias-0-datos_maquilador {
+    width: 30em;
+}
+
+textarea#id_mercancias-0-uso_autorizado {
+    width: 30em;
+}
+
+
+textarea#id_guias_identificacion-0-descripcion_contenido {
+    width: 30em;
+}
+
+</style>
+
+{% endblock %}
+
+{%block CartaPorteTraslado%}
+    <!-- Carta Porte -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Carta Porte Traslados" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">≡ Carta Porte</strong>
+                </div>
+                <div class="card-body" id="contenedor-carta-porte">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-carta-porte mb-4 border rounded p-3">
+
+                    <div class="row">
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Version de cp</label>
+                        {{ inline_admin_form.version_cp }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Transporte internacional</label>
+                        {{ inline_admin_form.transporte_internacional  }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Entrada / salida mercancia</label>
+                        {{ inline_admin_form.entrada_salida_mercancia }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Via transporte</label>
+                        {{ inline_admin_form.via_transporte }}
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Pais origen / destino</label>
+                        {{ inline_admin_form.pais_origen_destino }}
+                      </div>
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Total distancia recorrida</label>
+                        {{ inline_admin_form.total_distancia_recorrida }}
+                      </div>
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Registro ISTMO</label>
+                        {{ inline_admin_form.registro_istmo }}
+                      </div>
+
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Polo origen</label>
+                        {{ inline_admin_form.polo_origen }}
+                      </div>
+
+                       <div class="col-md-4 mb-4">
+                        <label class="form-label">Polo destino</label>
+                        {{ inline_admin_form.polo_destino }}
+                      </div>
+                    </div>
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+
+        <!-- Ubicacion -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Ubicaciones" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🛰️ Ubicacion</strong>
+                </div>
+                <div class="card-body" id="contenedor-ubicacion">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-carta-porte mb-4 border rounded p-3">
+
+                 <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de Ubicación</label>
+                        {{ inline_admin_form.tipo_ubicacion }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">ID de Ubicación</label>
+                        {{ inline_admin_form.id_ubicacion }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Distancia Recorrida (km)</label>
+                        {{ inline_admin_form.distancia_recorrida_km }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de Estación</label>
+                        {{ inline_admin_form.tipo_estacion }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Número de Estación</label>
+                        {{ inline_admin_form.numero_estacion }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Nombre de Estación</label>
+                        {{ inline_admin_form.nombre_estacion }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fecha de Salida/Llegada</label>
+                        {{ inline_admin_form.fecha_salida_llegada }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Hora de Salida/Llegada</label>
+                        {{ inline_admin_form.hora_salida_llegada }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Navegación o Tráfico</label>
+                        {{ inline_admin_form.navegacion_trafico }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">RFC del Remitente/Destinatario</label>
+                        {{ inline_admin_form.rfc_remitente_destinatario }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Número de Registro Tributario</label>
+                        {{ inline_admin_form.numero_registro_tributario }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nombre del Remitente</label>
+                        {{ inline_admin_form.nombre_remitente }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Residencia Fiscal</label>
+                        {{ inline_admin_form.residencia_fiscal }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Descripción de la Residencia Fiscal</label>
+                        {{ inline_admin_form.descripcion_resid_fiscal }}
+                    </div>
+                    </div>
+      
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+
+         <!-- Domicilio -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Domicilioss" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">📍 Domicilio</strong>
+                </div>
+                <div class="card-body" id="contenedor-domicilio">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-carta-porte mb-4 border rounded p-3">
+
+                 <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">País</label>
+                        {{ inline_admin_form.pais }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Código Postal</label>
+                        {{ inline_admin_form.codigo_postal }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Estado</label>
+                        {{ inline_admin_form.estado }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Municipio</label>
+                        {{ inline_admin_form.municipio }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Localidad</label>
+                        {{ inline_admin_form.localidad }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Colonia</label>
+                        {{ inline_admin_form.colonia }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Calle</label>
+                        {{ inline_admin_form.calle }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Número Exterior</label>
+                        {{ inline_admin_form.numero_exterior }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Número Interior</label>
+                        {{ inline_admin_form.numero_interior }}
+                    </div>
+                    </div>
+
+                    <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Referencia</label>
+                        {{ inline_admin_form.referencia }}
+                    </div>
+                    </div>
+
+      
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+              </div>
+            </div>
+
+
+            
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+
+{%block Mercancias%}
+
+
+
+    <!-- Mercancias -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Mercancias" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">📦 Mercancias</strong>
+                </div>
+                <div class="card-body" id="contenedor-mercancias">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-mercancias mb-4 border rounded p-3">
+
+                    <!-- DATOS GENERALES -->
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Número total de mercancías</label>
+                      {{ inline_admin_form.numero_total_mercancias }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Logística inversa</label>
+                      {{ inline_admin_form.logistica_inversa }}
+                    </div>
+                      <!-- PESO Y UNIDAD -->
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Clave unidad peso</label>
+                      {{ inline_admin_form.clave_unidad_peso }}
+                    </div>
+                  </div>
+
+                
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Unidad de peso</label>
+                      {{ inline_admin_form.unidad_peso }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Peso bruto total</label>
+                      {{ inline_admin_form.peso_bruto_total }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Peso neto total</label>
+                      {{ inline_admin_form.peso_neto_total }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Cargo por tasación</label>
+                      {{ inline_admin_form.cargo_por_tasacion }}
+                    </div>
+                      <!-- DETALLES DE BIENES TRANSPORTADOS -->
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Cantidad</label>
+                      {{ inline_admin_form.cantidad }}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Clave bienes transporte</label>
+                      {{ inline_admin_form.clave_bienes_transp }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Clave producto STCC</label>
+                      {{ inline_admin_form.clave_producto_STCC }}
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Clave unidad</label>
+                      {{ inline_admin_form.clave_unidad }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Unidad</label>
+                      {{ inline_admin_form.unidad }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Peso (kg)</label>
+                      {{ inline_admin_form.peso_kg }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Dimensiones</label>
+                      {{ inline_admin_form.dimensiones }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Unidad dimensión</label>
+                      {{ inline_admin_form.unidad_dimension }}
+                    </div>
+                  </div>
+
+                  <!-- MATERIAL PELIGROSO -->
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">¿Material peligroso?</label>
+                      {{ inline_admin_form.material_peligroso }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Clave material peligroso</label>
+                      {{ inline_admin_form.clave_material_peligroso }}
+                    </div>
+
+
+                      <div class="col-md-4 mb-3">
+                      <label class="form-label">Embalaje</label>
+                      {{ inline_admin_form.embalaje }}
+                    </div>
+
+
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Valor de la mercancía</label>
+                      {{ inline_admin_form.valor_mercancia }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Moneda</label>
+                      {{ inline_admin_form.moneda }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Fracción arancelaria</label>
+                      {{ inline_admin_form.fraccion_arancelaria }}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">UUID CFDI comercio exterior</label>
+                      {{ inline_admin_form.uuid_cfdi_com_ext }}
+                    </div>
+
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Sector COFEPRIS</label>
+                      {{ inline_admin_form.sector_cofepris }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Nombre ingrediente activo</label>
+                      {{ inline_admin_form.nombre_ingrediente_activo }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Nombre químico</label>
+                      {{ inline_admin_form.nombre_quimico }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Denominación genérica</label>
+                      {{ inline_admin_form.denominacion_generica }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Denominación distintiva</label>
+                      {{ inline_admin_form.denominacion_distintiva }}
+                    </div>
+
+
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Fabricante</label>
+                      {{ inline_admin_form.fabricante }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Fecha de caducidad</label>
+                      {{ inline_admin_form.fecha_caducidad }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Lote del medicamento</label>
+                      {{ inline_admin_form.lote_medicamento }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Registro sanitario</label>
+                      {{ inline_admin_form.registro_sanitario }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Número CAS</label>
+                      {{ inline_admin_form.numero_cas }}
+                    </div>
+
+
+                  </div>
+                  </div>
+
+                
+                    
+                
+                
+                   
+                   
+
+             
+                  <div class="row">
+                    
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Descripción material peligroso</label>
+                      {{ inline_admin_form.descripcion_material_peligroso }}
+                    </div>
+                  
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Descripción embalaje</label>
+                      {{ inline_admin_form.descripcion_embalaje }}
+                    </div>
+
+                     <div class="col-md-4 mb-3">
+                      <label class="form-label">Descripción fracción arancelaria</label>
+                      {{ inline_admin_form.descripcion_fraccion_arancelaria }}
+                    </div>
+                  </div>
+
+                 
+
+                  <!-- MEDICAMENTOS Y SUSTANCIAS -->
+            
+
+                  <!-- DATOS ADICIONALES -->
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Datos del fabricante</label>
+                      {{ inline_admin_form.datos_fabricante }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Datos del formulador</label>
+                      {{ inline_admin_form.datos_formulador }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Datos del maquilador</label>
+                      {{ inline_admin_form.datos_maquilador }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Uso autorizado</label>
+                      {{ inline_admin_form.uso_autorizado }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Estado de la materia</label>
+                      {{ inline_admin_form.estado_materia }}
+                    </div>
+                  </div>
+
+                  <!-- PERMISOS DE IMPORTACIÓN -->
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Folio permiso importación</label>
+                      {{ inline_admin_form.folio_permiso_importacion }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Folio VUCEM</label>
+                      {{ inline_admin_form.folio_vucem }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                      <label class="form-label">Razón social importadora</label>
+                      {{ inline_admin_form.razon_social_importadora }}
+                    </div>
+
+
+                  </div>
+
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+
+        
+
+
+            
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+
+
+{%block CantidadTransportada%}
+    <!-- Cantidad Transportada -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Cantidades Transportadas" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">≡ Cantidad Transportada</strong>
+                </div>
+                <div class="card-body" id="contenedor-cantidad-transportada">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-cantidad-transportada mb-4 border rounded p-3">
+
+                    <!-- DATOS DE LA MERCANCÍA Y TRANSPORTE -->
+
+                  <div class="row">
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Cantidad</label>
+                      {{ inline_admin_form.cantidad }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">ID Origen</label>
+                      {{ inline_admin_form.id_origen }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">ID Destino</label>
+                      {{ inline_admin_form.id_destino }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Clave de transporte</label>
+                      {{ inline_admin_form.clave_transporte }}
+                    </div>
+                  </div>
+
+                  <!-- DETALLES DE MERCANCÍA (Transporte Marítimo) -->
+
+                  <div class="row">
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Unidad de peso</label>
+                      {{ inline_admin_form.unidad_peso }}
+                    </div>
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Descripción unidad de peso</label>
+                      {{ inline_admin_form.descripcion_unidad_peso }}
+                    </div>
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Número de piezas</label>
+                      {{ inline_admin_form.numero_piezas }}
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Peso bruto</label>
+                      {{ inline_admin_form.peso_bruto }}
+                    </div>
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Peso neto</label>
+                      {{ inline_admin_form.peso_neto }}
+                    </div>
+                    <div class="col-md-4 mb-4">
+                      <label class="form-label">Peso tara</label>
+                      {{ inline_admin_form.peso_tara }}
+                    </div>
+                  </div>  
+
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+
+            
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+
+
+{%block DetalleMercanciaMaritima%}
+    <!-- Cantidad Transportada -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Detalles de Mercancía (Marítimo)" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🛥️ Detalle de Mercancía (Marítimo)</strong>
+                </div>
+                <div class="card-body" id="contenedor-detalle-mercancia-maritima">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-detalle-mercancia-maritima mb-4 border rounded p-3">
+
+                    <!-- DATOS DE LA MERCANCÍA Y TRANSPORTE -->
+
+                  <div class="row">
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Unidad de peso</label>
+                      {{ inline_admin_form.unidad_peso }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Descripción unidad de peso</label>
+                      {{ inline_admin_form.descripcion_unidad_peso }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Número de piezas</label>
+                      {{ inline_admin_form.numero_piezas }}
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Peso bruto</label>
+                      {{ inline_admin_form.peso_bruto }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Peso neto</label>
+                      {{ inline_admin_form.peso_neto }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Peso tara</label>
+                      {{ inline_admin_form.peso_tara }}
+                    </div>
+                  </div>  
+
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+
+            
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+
+
+{% block Pedimento %}
+    {% for inline_admin_formset in inline_admin_formsets %}
+      {% if inline_admin_formset.opts.verbose_name_plural == "Pedimentos" %}
+        <div class="col-md-5 mb-4">
+          <div class="card shadow-sm border border-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <strong class="mb-0">≡ Pedimento</strong>
+            </div>
+            <div class="card-body" id="contenedor-pedimento">
+              {{ inline_admin_formset.formset.management_form }}
+              {{ inline_admin_formset.non_form_errors }}
+              {% for inline_admin_form in inline_admin_formset.forms %}
+                <div class="formulario-pedimento mb-4 border rounded p-3">
+                  <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Tipo de documento</label>
+                      {{ inline_admin_form.tipo_documento }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Folio del documento</label>
+                      {{ inline_admin_form.folio_documento }}
+                    </div>
+                  </div>
+                     <div class="row">
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">RFC del importador</label>
+                      {{ inline_admin_form.rfc_importador }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Número del pedimento</label>
+                      {{ inline_admin_form.numero_pedimento }}
+                    </div>
+                    </div>
+               
+                  {{ inline_admin_form.id }}
+                  {{ inline_admin_form.comprobante }}
+                </div>
+              {% endfor %}
+            </div>
+          </div> {# Este cierre debe estar aquí, dentro del if pero fuera del inner for #}
+        </div>
+      {% endif %}
+    {% endfor %}
+{% endblock %}
+
+
+
+
+{% block GuiaIdentificacion %}
+    <!-- Cantidad GuiaIdentificacion  -->
+    {% for inline_admin_formset in inline_admin_formsets %}
+      {% if inline_admin_formset.opts.verbose_name_plural == "Guías de Identificación" %}
+        <div class="col-md-5 mb-4">  {# Reduce de col-md-12 a col-md-6 #}
+          <div class="card shadow-sm border border-light p-2"> {# padding reducido #}
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 px-3">
+              <strong class="mb-0 small">📄 Guía de Identificación</strong> {# texto más pequeño #}
+            </div>
+            <div class="card-body small" id="contenedor-guia-identificacion"> {# texto general más pequeño #}
+              {{ inline_admin_formset.formset.management_form }}
+              {{ inline_admin_formset.non_form_errors }}
+              {% for inline_admin_form in inline_admin_formset.forms %}
+                <div class="formulario-guia-identificacion mb-3 border rounded p-2">
+                  
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label small">Número de la guía</label>
+                      {{ inline_admin_form.numero_guia }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label small">Peso (kg)</label>
+                      {{ inline_admin_form.peso_kg }}
+                    </div>
+                  </div>
+
+                 <div class="row justify-content-center">
+                    <div class="col-md-6 mb-2 text-center">
+                      <label class="form-label small">Descripción del contenido</label>
+                      {{ inline_admin_form.descripcion_contenido }}
+                    </div>
+                  </div>
+
+
+                  {{ inline_admin_form.id }}
+                  {{ inline_admin_form.comprobante }}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+{% endblock %}
+
+
+
+{% block Autotransporte %}
+    <!-- Cantidad Autotransporte  -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Autotransportes" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🚌 Autotransporte</strong>
+                </div>
+                <div class="card-body" id="contenedor-autotransporte">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-autotransporte mb-4 border rounded p-3">
+
+                    <!-- DATOS DE LA MERCANCÍA Y TRANSPORTE -->
+
+                  <div class="row">
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Tipo de permiso SCT</label>
+                      {{ inline_admin_form.tipo_permiso_sct }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Número de permiso SCT</label>
+                      {{ inline_admin_form.numero_permiso_sct }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">configuración vehicular</label>
+                      {{ inline_admin_form.configuracion_vehicular }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Placa</label>
+                        {{ inline_admin_form.placa }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                          <label class="form-label">Modelo de anuncio</label>
+                          {{ inline_admin_form.modelo_anio }}
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Peso bruto vehicular</label>
+                            {{ inline_admin_form.peso_bruto_vehicular }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                              <label class="form-label">subtipo remolque</label>
+                              {{ inline_admin_form.subtipo_remolque }}
+                              </div>
+                              <div class="col-md-3 mb-3">
+                                <label class="form-label">Placa remolque</label>
+                                {{ inline_admin_form.placa_remolque }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                  <label class="form-label">Prima seguro</label>
+                                  {{ inline_admin_form.prima_seguro }}
+                                  </div>
+                                  <div class="col-md-3 mb-3">
+                                    <label class="form-label">Aseguradora resp civil</label>
+                                    {{ inline_admin_form.aseguradora_resp_civil }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                      <label class="form-label">Poliza resp civil</label>
+                                      {{ inline_admin_form.poliza_resp_civil }}
+                                      </div>
+                                      <div class="col-md-3 mb-3"> 
+                                        <label class="form-label">Aseguradora ambiental</label>
+                                        {{ inline_admin_form.aseguradora_ambiental }}
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                          <label class="form-label">Poliza ambiental</label>
+                                          {{ inline_admin_form.poliza_ambiental }}
+                                          </div>
+                                          <div class="col-md-3 mb-3">
+                                            <label class="form-label">Aseguradora carrega</label>
+                                            {{ inline_admin_form.aseguradora_carga }}
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                              <label class="form-label">Poliza carrega</label>
+                                              {{ inline_admin_form.poliza_carga }}
+                                              </div>
+                    </div>
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+
+
+{% block TransporteMaritimo %}
+    <!-- Cantidad TransporteMaritimo  -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Transportes Marítimos" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🚢 Transporte Marítimo</strong>
+                </div>
+                <div class="card-body" id="contenedor-transporte-maritimo">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-transporte-maritimo mb-4 border rounded p-3">
+
+                    <!-- DATOS DE LA MERCANCÍA Y TRANSPORTE -->
+
+                  <div class="row">
+                   
+                                <div class="col-md-3 mb-3">
+                                  <label class="form-label">Permiso de navegación</label>
+                                  {{ inline_admin_form.permiso_navegacion }}
+                                  </div>
+                                  <div class="col-md-3 mb-3">
+                                    <label class="form-label">Unidades de arqueo</label>
+                                    {{ inline_admin_form.unidades_arqueo }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                      <label class="form-label">Tipo de carga</label>
+                                      {{ inline_admin_form.tipo_carga }}
+                                      </div>
+                                      <div class="col-md-3 mb-3">
+                                        <label class="form-label">Espilon de eslora piés</label>
+                                        {{ inline_admin_form.eslora_pies }}
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                          <label class="form-label">Manga piés</label>
+                                          {{ inline_admin_form.manga_pies }}
+                                          </div>
+                                          <div class="col-md-3 mb-3">
+                                            <label class="form-label">Calado piés</label>
+                                            {{ inline_admin_form.calado_pies }}
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                              <label class="form-label">Pontal piés</label>
+                                              {{ inline_admin_form.puntal_pies }}
+                                              </div>
+
+                                              <div class="col-md-3 mb-3">
+                                              <label class="form-label">Linea de navegación</label>
+                                              {{ inline_admin_form.linea_naviera }}
+                                              </div>
+                                              <div class="col-md-3 mb-3">
+                                                <label class="form-label">Nombre agente de navegación</label>
+                                                {{ inline_admin_form.nombre_agente_naviero }}
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                  <label class="form-label">Número de registro de tributo</label>
+                                                  {{ inline_admin_form.numero_reg_aut_naviera }}
+                                                  </div>
+                                                  <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Número de viaje</label>
+                                                    {{ inline_admin_form.numero_viaje }}
+                                                    </div>
+                                                    <div class="col-md-3 mb-3">
+                                                      <label class="form-label">Número de conocimiento de embarque</label>
+                                                      {{ inline_admin_form.numero_conocimiento_embarque }}
+                                                      </div>
+
+                                                       <div class="col-md-3 mb-3">
+                      <label class="form-label">Tipo de permiso SCT</label>
+                      {{ inline_admin_form.tipo_permiso_sct }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Número de permiso SCT</label>
+                      {{ inline_admin_form.numero_permiso_sct }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Nombre aseguradora</label>
+                      {{ inline_admin_form.nombre_aseguradora }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Número de poliza seguro</label>
+                      {{ inline_admin_form.numero_poliza_seguro }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Tipo de embarcación</label>
+                      {{ inline_admin_form.tipo_embarcacion }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Matricula</label>
+                      {{ inline_admin_form.matricula }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                      <label class="form-label">Número de identificación de embarcación</label>
+                      {{ inline_admin_form.numero_id_omi }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Modelo de embarcación</label>
+                        {{ inline_admin_form.modelo_embarcacion_anio }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                          <label class="form-label">Nombre embarcación</label>
+                          {{ inline_admin_form.nombre_embarcacion }}
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Nacionalidad embarcación</label>
+                            {{ inline_admin_form.nacionalidad_embarcacion }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                              <label class="form-label">Descripción nacionalidad</label>
+                              {{ inline_admin_form.descripcion_nacionalidad }}
+                              </div>
+                              <div class="col-md-3 mb-3">
+                                <label class="form-label">Numero de certificado</label>
+                                {{ inline_admin_form.numero_cert_itc }}
+                                </div>
+                    </div>
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+
+{%endblock%}
+
+
+{%block TransporteAereo%}
+    <!-- TransporteAereo -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Transportes Aéreos" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">✈️ Transporte Aéreo</strong>
+                </div>
+                <div class="card-body" id="contenedor-transporte-aereo">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-transporte-aereo mb-4 border rounded p-3">
+                    <div class="row">
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Permiso de navegación</label>
+                        {{ inline_admin_form.tipo_permiso_sct }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Número de permiso SCT</label>
+                        {{ inline_admin_form.numero_permiso_sct }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Código de transportista</label>
+                        {{ inline_admin_form.codigo_transportista}}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Lugar de entrega</label>
+                        {{ inline_admin_form.lugar_contrato}}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Nombre de aseguradora</label>
+                        {{ inline_admin_form.nombre_aseguradora }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Número de poliza seguro</label>
+                        {{ inline_admin_form.numero_poliza_seguro }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                          <label class="form-label">Numero de matricula de aeronave</label>
+                          {{ inline_admin_form.numero_matricula_aeronave }}
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Número de guia</label>
+                            {{ inline_admin_form.numero_guia }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                              <label class="form-label">rfc_embarcador</label>
+                              {{ inline_admin_form.rfc_embarcador }}
+                              </div>
+                              <div class="col-md-3 mb-3">
+                                <label class="form-label">Nombre embarcador</label>
+                                {{ inline_admin_form.nombre_embarcador }}
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                  <label class="form-label">Residencia Fiscal Embarcador</label>
+                                  {{ inline_admin_form.residencia_fiscal_embarcador }}
+                                  </div>
+                                  <div class="col-md-3 mb-3">
+                                    <label class="form-label">Descripción de la residencia fiscal</label>
+                                    {{ inline_admin_form.descripcion_residencia_fiscal }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                      <label class="form-label">Número de identificación del tribunal embarcador</label>
+                                      {{ inline_admin_form.numero_id_reg_trib_embarcador }}
+                                      </div>
+                                    </div>
+
+                                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                                    {{ inline_admin_form.id }}
+                                    {{ inline_admin_form.comprobante }}
+                                  </div>
+                                  {% endfor %}
+                                </div>
+                              </div>
+                            </div>
+                          {% endif %}
+                        {% endfor %}  
+
+                        
+      {%endblock%}
+
+
+
+      
+{%block TransporteFerroviario%}
+    <!-- TransporteFerroviario -->
+         {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Transportes Ferroviarios" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🚂 Transporte Ferroviario</strong>
+                </div>
+                <div class="card-body" id="contenedor-transporte-ferroviario">
+                    
+                    {{ inline_admin_formset.formset.management_form }}
+                    {{ inline_admin_formset.non_form_errors }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-transporte-ferroviario mb-4 border rounded p-3">
+                    <div class="row">
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de servicio</label>
+                        {{ inline_admin_form.tipo_servicio }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de tráfico</label>
+                        {{ inline_admin_form.tipo_trafico }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Nombre aseguradora</label>
+                        {{ inline_admin_form.nombre_aseguradora }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Número de poliza seguro</label>
+                        {{ inline_admin_form.numero_poliza_seguro }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3"> 
+                        <label class="form-label">Tipos de derechos de paso</label>
+                        {{ inline_admin_form.tipos_derechos_paso }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de carro</label>
+                        {{ inline_admin_form.tipo_carro }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Matricula de carro</label>
+                        {{ inline_admin_form.matricula_carro }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Guia de carro</label>
+                        {{ inline_admin_form.guia_carro }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Toneladas de netas del carro</label>
+                        {{ inline_admin_form.toneladas_netas_carro }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo de contenedor</label>
+                        {{ inline_admin_form.tipo_contenedor }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Peso contenedor vacío</label>
+                        {{ inline_admin_form.peso_contenedor_vacio_kg }}
+                        
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Peso neto de mercancía</label>
+                        {{ inline_admin_form.peso_neto_mercancia_kg }}
+
+                      </div>
+
+                      </div>
+                      {# Oculta los campos hidden como id y comprobante si los hay #}
+                      {{ inline_admin_form.id }}
+                      {{ inline_admin_form.comprobante }}
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+ {%endblock%}
+     
+
+            
+{%block FiguraTransporte%}
+
+    <!-- FiguraTransporte -->
+            {% for inline_admin_formset in inline_admin_formsets %}
+              {% if inline_admin_formset.opts.verbose_name_plural == "Figuras de Transporte" %}
+                <div class="col-md-12 mb-4">
+                  <div class="card shadow-sm border border-light">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <strong class="mb-0">≡ Figura de Transporte</strong>
+                    </div>
+                    <div class="card-body" id="contenedor-figura-transporte">
+                        
+                        {{ inline_admin_formset.formset.management_form }}
+                        {{ inline_admin_formset.non_form_errors }}
+                      {% for inline_admin_form in inline_admin_formset.forms %}
+                      <div class="formulario-figura-transporte mb-4 border rounded p-3">
+                        <div class="row">
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Tipo de figura</label>
+                            {{ inline_admin_form.tipo_figura }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Número de licencia</label>
+                            {{ inline_admin_form.numero_licencia }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">RFC</label>
+                            {{ inline_admin_form.rfc }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Número de registro trib</label>
+                            {{ inline_admin_form.numero_registro_trib }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Nombre</label>
+                            {{ inline_admin_form.nombre }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Residencia Fiscal</label>
+                            {{ inline_admin_form.residencia_fiscal }}
+                            
+                          </div>
+                          <div class="col-md-3 mb-3">
+                            <label class="form-label">Descripción de la residencia fiscal</label>
+                            {{ inline_admin_form.descripcion_residencia_fiscal }}
+                            
+                          </div>
+                        </div>
+                        {# Oculta los campos hidden como id y comprobante si los hay #}
+                        {{ inline_admin_form.id }}
+                        {{ inline_admin_form.comprobante }}
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+
+
+{%endblock%}
+
+
+{%block ParteTransporte%}
+    <!-- ParteTransporte -->
+            {% for inline_admin_formset in inline_admin_formsets %}
+              {% if inline_admin_formset.opts.verbose_name_plural == "Parte de Transporte" %}
+                <div class="col-md-3 mb-4">
+                  <div class="card shadow-sm border border-light">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <strong class="mb-0">📦 Parte de Transporte</strong>
+                    </div>
+                    <div class="card-body" id="contenedor-parte-transporte">
+                        
+                        {{ inline_admin_formset.formset.management_form }}
+                        {{ inline_admin_formset.non_form_errors }}
+                      {% for inline_admin_form in inline_admin_formset.forms %}
+                      <div class="formulario-parte-transporte mb-4 border rounded p-3">
+                        
+                          <div class="col-md-12 mb-3">
+                            <label class="form-label">Código</label>
+                            {{ inline_admin_form.codigo }}
+                            
+                          </div>
+                          <div class="col-md-12 mb-3">
+                            <label class="form-label">Descripción</label>
+                            {{ inline_admin_form.descripcion }}
+                            
+                          </div>
+                        
+
+                        {# Oculta los campos hidden como id y comprobante si los hay #}
+                        {{ inline_admin_form.id }}
+                        {{ inline_admin_form.comprobante }}
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+{%endblock%}
+
+{%block RegimenAduanero%}
+    <!-- RegimenAduanero -->
+            {% for inline_admin_formset in inline_admin_formsets %}
+              {% if inline_admin_formset.opts.verbose_name_plural == "Regimen Aduanero Ccp 31" %}
+                <div class="col-md-3 mb-4">
+                  <div class="card shadow-sm border border-light">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <strong class="mb-0">📃 Regimen Aduanero Ccp 31</strong>
+                    </div>
+                    <div class="card-body" id="contenedor-regimen-aduanero">
+                        
+                        {{ inline_admin_formset.formset.management_form }}
+                        {{ inline_admin_formset.non_form_errors }}
+                      {% for inline_admin_form in inline_admin_formset.forms %}
+                      <div class="formulario-regimen-aduanero mb-4 border rounded p-3">
+                        
+                          <div class="col-md-12 mb-3">
+                            <label class="form-label">Código</label>
+                            {{ inline_admin_form.codigo }}
+                            
+                          </div>
+                          <div class="col-md-12 mb-3">
+                            <label class="form-label">Descripción</label>
+                            {{ inline_admin_form.descripcion }}
+                            
+                          </div>
+                        
+
+                        {# Oculta los campos hidden como id y comprobante si los hay #}
+                        {{ inline_admin_form.id }}
+                        {{ inline_admin_form.comprobante }}
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+{%endblock%}
+
+                        
+
+
+
+
+                
+

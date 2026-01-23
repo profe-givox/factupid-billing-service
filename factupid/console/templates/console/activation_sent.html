@@ -1,0 +1,23 @@
+{% extends "console/layout.html" %}
+
+{% load breadcrumbs %}
+{% block breadcrumbs %}
+    {% breadcrumb_url "Inicio" "inicio" %}
+    {% breadcrumb_url "registrarse" "register"  %}
+    {% breadcrumb "activacion enviada"  %}
+   
+{% endblock %}
+
+{% block content %}
+
+<div class="global-container d-flex justify-content-center align-items-center">
+    <div class="card login-form">
+        <div class="card-body text-center">
+            <h3 class="card-title">Se ha enviado un correo de activacion </h3>
+            <p class="card-text">Por favor revisa tu correo electrónico para activar tu cuenta</p>
+            <p class="card-text" style="font-size: 2em;">📧</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

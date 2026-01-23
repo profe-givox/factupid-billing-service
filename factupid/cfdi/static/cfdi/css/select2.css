@@ -1,0 +1,59 @@
+/* 🔹 Ajustar tamaño y bordes del campo select2 para que se vea como los inputs */
+.select2-container--admin-autocomplete .select2-selection--single {
+    border: 1px solid #ced4da !important;  /* mismo borde que input */
+    border-radius: 4px; 
+    height: 38px !important;               /* alto uniforme */
+    padding: 6px 12px;
+    box-shadow: none;
+    background-color: #fff;
+    display: flex;
+    align-items: center; /* centra el texto verticalmente */
+}
+
+/* 🔹 El texto dentro del campo */
+.select2-container--admin-autocomplete .select2-selection__rendered {
+    line-height: 24px !important;
+    color: #212529;
+}
+
+/* 🔹 La flechita de despliegue */
+.select2-container--admin-autocomplete .select2-selection__arrow {
+    height: 100%;
+}
+
+/* 🔹 El campo de búsqueda dentro del dropdown */
+.select2-container--admin-autocomplete .select2-search__field {
+    border: 1px solid #ced4da !important;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    height: 38px;
+    outline: none;
+    width: 100% !important;   /* que ocupe todo el ancho */
+    box-sizing: border-box;
+}
+
+/* 🔹 Mejorar la lista desplegable */
+.select2-container--admin-autocomplete .select2-results__option {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+/* 🔹 Al pasar sobre una opción */
+.select2-container--admin-autocomplete .select2-results__option--highlighted {
+    background-color: #007bff;
+    color: white;
+}
+
+
+.related-widget-wrapper-link.view-related {
+    display: none !important;
+}
+
+.related-widget-wrapper-link.add-related {
+    display: none !important;
+}
+
+.related-widget-wrapper-link.change-related {
+    display: none !important;
+}

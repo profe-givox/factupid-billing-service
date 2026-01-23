@@ -1,0 +1,35 @@
+<div class="card-body row">
+    {% for inline_admin_form in inline_admin_formset %}
+        <div class="col-md-6 d-flex flex-column">
+            <div class="card stacked_volt_card flex-fill"> 
+                <div class="stacked_volt inline-related{% if inline_admin_form.original or inline_admin_form.show_url %} has_original{% endif %}{% if forloop.last and inline_admin_formset.has_add_permission %} empty-form last-related{% endif %}" id="{{ inline_admin_formset.formset.prefix }}-{% if not forloop.last %}{{ forloop.counter0 }}{% else %}empty{% endif %}">
+                    <h3>
+                        <b>{{ inline_admin_formset.opts.verbose_name|capfirst }}:</b>
+                        <span class="inline_label">
+                            {% if inline_admin_form.original %}
+                                {{ inline_admin_form.original }}
+                                {% if inline_admin_form.model_admin.show_change_link and inline_admin_form.model_admin.has_registered_model %}
+                                    <a href="{% url inline_admin_form.model_admin.opts|admin_urlname:'change' inline_admin_form.original.pk|admin_urlquote %}"
+                                       class="{% if inline_admin_formset.has_change_permission %}inlinechangelink{% else %}inlineviewlink{% endif %}">
+                                        {% if inline_admin_formset.has_change_permission %}
+                                            {% translate "Change" %}
+                                        {% else %}
+                                            {% translate "View" %}
+                                        {% endif %}
+                                    </a>
+                                {% endif %}
+                            {% else %}#{{ forloop.counter }}{% endif %}
+                        </span>
+                    </h3>
+                    <div class="row">
+                        {% for fieldset in inline_admin_form %}
+                            <div class="col-md-6">
+                                {% include "LadoClientes/includes/fieldset.html" %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>

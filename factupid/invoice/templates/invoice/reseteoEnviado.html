@@ -1,0 +1,28 @@
+{% extends "invoice/layout.html" %}
+<div class="container mt-4"> 
+{% load invoice_breadcrumbs %}
+{% block invoice_breadcrumbs %}
+<nav class="fw-arial" aria-label="breadcrumb" style="background-color: #e3e4e5; padding: 5px; border-radius: 100px; display: inline-block;">
+    {% breadcrumb_url "Inicio" "invoice:inicio" %}
+    {% breadcrumb_url "inciar sesion" "invoice:iniciarsesion"  %}
+    {% breadcrumb_url "Restauracion de contraseña" "invoice:reset_password"  %}
+    {% breadcrumb "Reseteo enviado"   %}
+    </nav>
+   
+{% endblock %}
+
+{% block content %}
+<br>
+<br>
+
+<div class="global-container d-flex justify-content-center align-items-center">
+    <div class="card login-form">
+        <div class="card-body text-center">
+            <h3 class="card-title">Se ha enviado un correo </h3>
+            <p class="card-text">Por favor revisa tu correo electrónico para resetear tu clave</p>
+            <p class="card-text" style="font-size: 2em;">📧</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

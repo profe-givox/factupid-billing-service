@@ -1,0 +1,1191 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+    {{ media }}
+     <!-- Django Autocomplete Light CSS and JS -->
+    <link rel="stylesheet" type="text/css" href="{% static 'autocomplete_light/select2.css' %}" />
+
+    <link rel="stylesheet" type="text/css" href="{% static 'cfdi/css/select2.css' %}">
+    <script type="text/javascript" src="{% static 'autocomplete_light/autocomplete_light.js' %}"></script>
+    <script type="text/javascript" src="{% static 'autocomplete_light/select2.js' %}"></script>
+    
+
+     <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block extrastyle %}
+
+    <link rel="stylesheet" type="text/css" href="{% static 'assets/css/forms.css' %}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+
+    
+    <style>
+        /* Aquí van los estilos personalizados */
+        .card .card-header strong {
+            font-size: 1rem;
+          }
+          
+          {% comment %} .card .card-body {
+            font-size: 0.85rem;
+            line-height: 1.4;
+          } {% endcomment %}
+          
+          .card .card-body p {
+            margin-bottom: 0.4rem;
+          }
+          
+          .card .text-uppercase {
+            text-transform: uppercase;
+            font-weight: 600;
+          }
+          
+          .card {
+            height: 100%;
+          }
+          
+          .inline-group .inline-related h3 {
+            display: none;
+        }
+        
+        .inline-group h2 {
+            display: none;
+        }
+
+        .table td, .table th {
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+
+        .formulario-concepto label {
+            font-weight: 600;
+        }
+
+        .formulario-concepto input,
+        .formulario-concepto select,
+        .formulario-concepto textarea {
+            width: 100%;
+        }
+
+         /* Asegura que todos los label estén arriba */
+        .formulario-receptor .form-label {
+          display: block;
+          margin-bottom: 0.3rem;
+          font-weight: 500;
+        }
+
+        /* Forzar que select2 o selects anchos no desborden */
+        {% comment %} .formulario-receptor .select2-container {
+          min-width: 100% !important;
+          max-width: 100% !important;
+        } {% endcomment %}
+        
+
+        /* Asegura margen inferior consistente */
+        .formulario-receptor .mb-3 {
+          margin-bottom: 1rem !important;
+        }
+
+        .grupo-impuestos {
+          position: relative;
+          display: inline-block;
+        }
+      
+        .btn-impuestos {
+          font-weight: bold;
+          padding: 0.375rem 0.75rem;
+          font-size: 0.875rem;
+        }
+      
+        .menu-impuestos {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          z-index: 1050;
+          min-width: 200px;
+          padding: 0.5rem 0;
+          margin-top: 0.25rem;
+          background-color: #fff;
+          border: 1px solid #ccc;
+          border-radius: 0.25rem;
+          box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+          display: none;
+        }
+      
+        .menu-impuestos > li {
+          position: relative;
+        }
+      
+        .menu-impuestos a.dropdown-item {
+          display: block;
+          width: 100%;
+          padding: 0.375rem 1rem;
+          clear: both;
+          font-weight: 400;
+          color: #212529;
+          text-align: inherit;
+          white-space: nowrap;
+          background-color: transparent;
+          border: 0;
+          text-decoration: none;
+        }
+      
+        .menu-impuestos a.dropdown-item:hover {
+          background-color: #f1f1f1;
+          color: #000;
+        }
+      
+        .dropdown-submenu-list {
+          position: relative;
+          padding-left: 1rem;
+          display: none;
+        }
+      
+        .dropdown-submenu-list li a {
+          font-size: 0.875rem;
+          padding-left: 1.5rem;
+        }
+      
+        .dropdown-submenu-list li a:hover {
+          background-color: #e9ecef;
+          color: #000;
+        }
+        
+
+        
+        
+    </style>
+{% endblock %}
+
+{% if not is_popup %}
+  {% block breadcrumbs %}
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <div class="page-header-title">
+              <h5 class="m-b-10">{{ opts.verbose_name_plural|capfirst }}</h5>
+            </div>
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="#"><i class="feather icon-home"></i></a></li>
+              <li class="breadcrumb-item"><a href="javascript:">{{ opts.app_config.verbose_name }}</a></li>
+              <li class="breadcrumb-item"><a href="javascript:">{{ opts.verbose_name_plural|capfirst }}</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endblock %}
+{% endif %}
+
+{% block content %}
+  <div class="container-fluid py-2">
+    <div class="py-4 ms-4">
+      <div class="d-flex justify-content-between w-100 flex-wrap">
+        <div class="mb-3 mb-lg-0">
+          <h1 class="h4">
+            {% if add %}
+              {% blocktrans with name=opts.verbose_name %}Agregar {{ name }}{% endblocktrans %}
+            {% else %}
+              {{ original|truncatewords:"18" }}
+            {% endif %}
+          </h1>
+        </div>
+        <div>
+          {% block object-tools %}
+            {% if change and not is_popup %}
+              {% block object-tools-items %}
+                {% change_form_object_tools %}
+              {% endblock %}
+            {% endif %}
+          {% endblock %}
+        </div>
+      </div>
+    </div>
+
+    {% if messages %}
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          {% for message in messages %}
+            {% if "success" in message.tags and "timbrado" in message|lower %}
+              Swal.fire({
+                icon: 'success',
+                title: '¡Timbrado exitoso!',
+                html: `{{ message|linebreaksbr|escapejs }}`
+              });
+
+            {% elif "copy-success" in message.tags %}
+              Swal.fire({
+                icon: 'success',
+                title: 'Formulario copiado',
+                html: `{{ message|linebreaksbr|escapejs }}`,
+                confirmButtonText: 'Aceptar'
+              });
+            {% elif "error" in message.tags %}
+              Swal.fire({
+                icon: 'error',
+                title: 'Incidencia detectada',
+                html: `{{ message|linebreaksbr|escapejs }}`
+              });
+            {% endif %}
+          {% endfor %}
+        });
+      </script>
+    {% endif %}
+
+
+
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+
+    {# Aquí se insertan los bloques visuales personalizados como los que ya diseñaste #}
+    {# Por ejemplo: tarjetas con datos del negocio, comprobante, información global, receptor, emisor, conceptos, etc. #}
+    {% block custom_form_sections %}
+        <div class="row mb-4">
+            {% if info_fiscal_obj %}
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow-sm border border-success">
+                        <div class="card-header d-flex justify-content-between align-items-center bg-success text-white py-2">
+                            <strong class="mb-0">Negocio</strong>
+                            <small>Vigente:</small>
+                        </div>
+                        <div class="card-body py-2 px-3">
+                            <div class="mb-2 d-flex align-items-center">
+                                <i class="fas fa-check-circle text-success me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div><small class="text-muted">Vigencia:</small> {{ certificado_default.vigencia|date:"d-m-Y" }}</div>
+                                    <div><small class="text-muted">Número de certificado:</small> <span class="text-muted"> {{certificado_default.numero_certificado }} </span></div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start">
+                                <div class="me-3" style="width: 75px; height: 75px;">
+                                    {% if info_fiscal_obj.imagen %}
+                                        <img src="{{ info_fiscal_obj.imagen.url }}" alt="Logo" class="img-fluid rounded" style="max-height: 75px;">
+                                    {% else %}
+                                        <div class="border bg-light d-flex align-items-center justify-content-center rounded" style="width: 75px; height: 75px;">
+                                            <span class="text-muted small">Sin imagen</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <strong class="text-uppercase d-block">{{ info_fiscal_obj.nombre }}</strong>
+                                    <div><strong>RFC:</strong> {{ info_fiscal_obj.rfc }}</div>
+                                    <div><strong>Régimen Fiscal:</strong> {{ info_fiscal_obj.regimen_fiscal.descripcion }}</div>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="small">
+                                <strong>Dirección:</strong><br>
+                                {{ info_fiscal_obj.calle }}
+                                {% if info_fiscal_obj.numero_exterior %} Núm. exterior: {{ info_fiscal_obj.numero_exterior }}, {% endif %}
+                                {% if info_fiscal_obj.numero_interior %} Núm. interior: {{ info_fiscal_obj.numero_interior }}{% endif %}<br>
+                                Colonia {{ info_fiscal_obj.colonia }} C.P. {{ info_fiscal_obj.codigo_postal }}<br>
+                                {{ info_fiscal_obj.ciudad }}, {{ info_fiscal_obj.municipio }}, {{ info_fiscal_obj.estado }}, {{ info_fiscal_obj.pais }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Fieldsets (Información General) -->
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <strong class="mb-0">🧾 Comprobante</strong>
+                </div>
+                <div class="card-body py-2 px-4">
+                    <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ adminform.form.version.label_tag }} {{ adminform.form.version }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ adminform.form.fechaEmision.label_tag }} {{ adminform.form.fechaEmision }}
+                    </div>
+            
+                    <!-- Serie y folio en línea -->
+                    <div class="col-md-12 mb-3">
+                        <div class="row">
+                          <div class="col-6">
+                              {{ adminform.form.serie.label_tag }}  
+                              {{ adminform.form.serie}}
+                          </div>
+                          <div class="col-6">
+                              {{ adminform.form.folio.label_tag }} 
+                              {{ adminform.form.folio }}
+                          </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Información Fiscal -->
+                    <div class="col-12 mb-3">
+                        <label for="{{ adminform.form.informacionFiscal.id_for_label }}" class="form-label">Sucursal</label>
+                        <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            {{ adminform.form.informacionFiscal }}
+                        </div>
+                        </div>
+                    </div>
+                    
+                    
+                    </div>
+                </div>
+                </div>
+            </div>
+            
+
+            <!-- Informacion Global -->
+            <div class="col-md-4 mb-4">
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {{ inline_admin_formset.non_form_errors }}
+                    {% if inline_admin_formset.opts.verbose_name_plural == "Información global" %}
+                    {# Asegura que el primer inline sea Tipo de Comprobante #}
+                        <div class="card shadow-sm border border-light">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <strong class="mb-0">🧾 Informacion Global</strong>
+                            </div>
+                            <div class="card-body">
+                                {{ inline_admin_formset.formset.management_form }}
+                                {{ inline_admin_formset.non_form_errors }}
+                                {% for inline_admin_form in inline_admin_formset.forms %}
+                                <div class="formulario-informacion-global mb-4 border rounded p-3">
+                                    <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        {{ inline_admin_form.Escomprobantelegal.label_tag }}
+                                        {{ inline_admin_form.Escomprobantelegal }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        {{ inline_admin_form.Periodicidad.label_tag }}
+                                        {{ inline_admin_form.Periodicidad }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        {{ inline_admin_form.Meses.label_tag }}
+                                        {{ inline_admin_form.Meses }}
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        {{ inline_admin_form.Anio.label_tag }}
+                                        {{ inline_admin_form.Anio }}
+                                    </div>
+                                    </div>
+                                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                                    {{ inline_admin_form.id }}
+                                    {{ inline_admin_form.comprobante }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {# Para cambiar el inline mostrado, modifica la condición if forloop.first por otra lógica adecuada. Por ejemplo, para mostrar ConceptosInline en lugar de TipoComprobanteInline, puedes iterar y comparar con inline_admin_formset.opts.verbose_name_plural o cambiar el orden en la fuente de datos. #}
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Datos de Información de pago -->
+            <div class="col-md-12 mb-4">
+                <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light">
+                    <strong class="mb-0">🪙 Información de pago</strong>
+                </div>
+                <div class="card-body px-4 py-3">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ adminform.form.c_MetodoPago.id_for_label }}" class="form-label">Método de pago </label>
+                                {{ adminform.form.c_MetodoPago }}
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ adminform.form.c_FormaPago.id_for_label }}" class="form-label">Forma de pago</label>
+                                {{ adminform.form.c_FormaPago }}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ adminform.form.condicionesDePago.id_for_label }}" class="form-label">Condiciones de pago</label>
+                                {{ adminform.form.condicionesDePago }}
+                            </div>
+                        </div>
+                    
+                        <div class="row">
+                            <div class="col-md-2 mb-3">
+                                <label for="{{ adminform.form.fechaPago.id_for_label }}">Fecha de pago</label>
+                                {{ adminform.form.fechaPago }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ adminform.form.c_Moneda.id_for_label }}">Moneda</label>
+                                {{ adminform.form.c_Moneda }}
+                            </div>
+                            <div class="col-md-1 mb-3">
+                                <label for="{{ adminform.form.tipoCambio.id_for_label }}">Tipo de cambio</label>
+                                {{ adminform.form.tipoCambio }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+
+            <!-- Emisor personalizado -->
+            {% for inline_admin_formset in inline_admin_formsets %}
+                {% if inline_admin_formset.opts.verbose_name_plural == "Emisores" %}
+                    <div class="col-md-12 mb-4">
+                        <div class="card shadow-sm border border-light">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <strong class="mb-0">🧾 Emisor</strong>
+                        </div>
+                        <div class="card-body" id="contenedor-emisores">
+                            
+                            {# ⛔ Solo una vez el management_form, fuera del bucle #}
+                            {{ inline_admin_formset.formset.management_form }}
+
+                            {{ inline_admin_formset.non_form_errors }}
+                            
+                            {% for inline_admin_form in inline_admin_formset.forms %}
+                            <div class="formulario-emisor mb-4 border rounded p-3" data-nombre-formulario="{{ inline_admin_formset.opts.verbose_name|capfirst }}">
+
+                                <div class="d-none">
+                                  {{ inline_admin_formset.non_form_errors }}
+                                  {{ inline_admin_form.errors }}
+                                </div>
+                                
+                                <div class="row">
+                                <div class="col-md-5 mb-3">
+                                    {{ inline_admin_form.c_RegimenFiscal.label_tag }}
+                                    {{ inline_admin_form.c_RegimenFiscal }}
+                                </div>
+                                <div class="col-md-5 mb-3">
+                                    {{ inline_admin_form.facAtrAdquirente.label_tag }}
+                                    {{ inline_admin_form.facAtrAdquirente }}
+                                </div>
+                                <div class="col-md-2 mb-3 d-flex align-items-center">
+                                    <label class="form-check-label ms-2" for="mostrarDireccion_{{ forloop.counter0 }}">
+                                    Mostrar dirección en el PDF
+                                    </label>
+                                    <input class="form-check-input ms-2" type="checkbox" id="mostrarDireccion_{{ forloop.counter0 }}" name="mostrarDireccion_{{ forloop.counter0 }}" checked>
+                                </div>
+                                </div>
+
+                                <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ inline_admin_form.rfc.label_tag }}
+                                    {{ inline_admin_form.rfc }}
+                                </div>
+                                <div class="col-md-8 mb-3">
+                                    {{ inline_admin_form.nombre.label_tag }}
+                                    {{ inline_admin_form.nombre }}
+                                </div>
+                                </div>
+
+                                {# Oculta los campos hidden como id y comprobante si los hay #}
+                                {{ inline_admin_form.id }}
+                                {{ inline_admin_form.comprobante }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+
+
+
+            <!-- CfdiRelacionados personalizado -->  
+            {% for inline_admin_formset in inline_admin_formsets %}
+              {% if inline_admin_formset.opts.verbose_name_plural == "CFDI Relacionados" %}
+                <div class="col-md-12 mb-4">
+                  <div class="card shadow-sm border border-light">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <strong class="mb-0">📄 Comprobantes relacionados</strong>
+                    </div>
+
+                    <div class="card-body" id="contenedor-relaciones">
+                      {{ inline_admin_formset.formset.management_form }}
+                      {{ inline_admin_formset.non_form_errors }}
+                      {% for inline_admin_form in inline_admin_formset.forms %}
+                        <div class="d-none" data-nombre-formulario="{{ inline_admin_formset.opts.verbose_name|capfirst }}">
+                          {{ inline_admin_formset.non_form_errors }}
+                          {{ inline_admin_form.errors }}
+                        </div>
+                        <div class="formulario-relacion mb-4 border rounded p-3">
+                          <div class="d-none">
+                            {% if inline_admin_form.instance.pk %}
+                              {{ inline_admin_form.DELETE }}
+                            {% endif %}
+                          </div>
+                          <!-- Tipo relación -->
+                          <div class="row">
+                            <div class="mb-3 col-md-4">
+                              <label class="form-label">Tipo relación</label>
+                              {{ inline_admin_form.c_TipoRelacion }}
+                            </div>
+                          </div>
+                          <!-- Buscador + UUID -->
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="mb-2"><strong>Buscar comprobante</strong></div>
+                              <div class="mb-3">
+                                <label class="form-label">Origen cfdi</label>
+                                <select class="form-select" name="origen_cfdi">
+                                  <option value="">------</option>
+                                  <option value="interno">CFDI Interno</option>
+                                  <option value="externo">CFDI Externo</option>
+                                </select>
+                              </div>
+                              <div class="mb-3">
+                                <label class="form-label">Receptor RFC</label>
+                                <input type="text" class="form-control" placeholder="RFC del receptor">
+                              </div>
+                              <div class="mb-3">
+                                <label class="form-label">UUID</label>
+                                {{ inline_admin_form.uuid }}
+                              </div>
+                            </div>
+                            <div class="col-md-6 mt-5">
+                              <table class="table table-sm table-bordered" style="font-size: 0.875rem;">
+                                <tbody>
+                                  <tr><th>UUID</th><td colspan="3" id="detalle_uuid">---</td></tr>
+                                  <tr><th>Fecha</th><td id="detalle_fecha">---</td><th>Folio</th><td id="detalle_folio">---</td></tr>
+                                  <tr><th>Emisor - RFC</th><td id="detalle_emisor_rfc">---</td><th>Emisor - Razón social</th><td id="detalle_emisor_nombre">---</td></tr>
+                                  <tr><th>Receptor - RFC</th><td id="detalle_receptor_rfc">---</td><th>Receptor - Razón social</th><td id="detalle_receptor_nombre">---</td></tr>
+                                  <tr>
+                                    <th>Archivos</th>
+                                    <td colspan="3">
+                                      <a href="#" class="btn btn-sm btn-danger" id="link_pdf" target="_blank"><i class="fas fa-file-pdf"></i></a>
+                                      <a href="#" class="btn btn-sm btn-info" id="link_xml" target="_blank"><i class="fas fa-file-code"></i></a>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          {{ inline_admin_form.id }}
+                          {{ inline_admin_form.comprobante }}
+
+                          <button type="button" class="btn btn-danger btn-sm eliminar-relacion mt-2">
+                            <i class="fas fa-trash-alt"></i> Eliminar
+                          </button>
+                        </div>
+                      {% endfor %}
+                    </div>
+
+                    <div class="card-footer text-end">
+                      <button type="button" class="btn btn-success" onclick="agregarRelacion()">
+                        <i class="fas fa-plus"></i> Agregar relación
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+
+
+
+        <!-- Receptor personalizado -->
+        {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Receptores" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">≡ Receptor</strong>
+                </div>
+                <div class="card-body" id="contenedor-receptores">
+                  {{ inline_admin_formset.formset.management_form }}
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                  <div class="formulario-receptor mb-4 border rounded p-3" data-nombre-formulario="{{ inline_admin_formset.opts.verbose_name|capfirst }}">
+
+                    <div class="d-none">
+                      {{ inline_admin_formset.non_form_errors }}
+                      {{ inline_admin_form.errors }}
+                    </div>
+                    <div class="row">
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Uso CFDI</label>
+                        {{ inline_admin_form.c_UsoCFDI }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">RFC</label>
+                        {{ inline_admin_form.rfc }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Razón social (Nombre)</label>
+                        {{ inline_admin_form.nombre }}
+                      </div>
+                      <div class="col-md-3 mb-3">
+                        <label class="form-label">Registro tributario</label>
+                        {{ inline_admin_form.numRegldTrib }}
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Domicilio Fiscal</label>
+                        {{ inline_admin_form.c_DomicilioFiscalReceptor }}
+                      </div>
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Residencia Fiscal</label>
+                        {{ inline_admin_form.c_ResidenciaFiscal }}
+                      </div>
+                      <div class="col-md-4 mb-4">
+                        <label class="form-label">Régimen Fiscal</label>
+                        {{ inline_admin_form.c_RegimenFiscalReceptor }}
+                      </div>
+                    </div>
+                    {# Oculta los campos hidden como id y comprobante si los hay #}
+                    {{ inline_admin_form.id }}
+                    {{ inline_admin_form.comprobante }}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+
+
+
+        <!-- Conceptos personalizados -->
+        {% for inline_admin_formset in inline_admin_formsets %}
+            {% if inline_admin_formset.opts.verbose_name_plural == "Conceptos" %}
+                <div class="col-md-12 mb-4">
+                    <div class="card shadow-sm border border-light">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <strong class="mb-0">📦 Conceptos</strong>
+                    </div>
+                    <div class="card-body" id="contenedor-conceptos">
+                        {{ inline_admin_formset.formset.management_form }}
+                        {{ inline_admin_formset.non_form_errors }}
+                        {% for inline_admin_form in inline_admin_formset.forms %}
+                        <div class="d-none" data-nombre-formulario="{{ inline_admin_formset.opts.verbose_name|capfirst }}">
+                          {{ inline_admin_formset.non_form_errors }}
+                          {{ inline_admin_form.errors }}
+                        </div>
+                        <div class="formulario-concepto mb-4 border rounded p-3" id="concepto-{{ forloop.counter0 }}" data-concepto-id="{{ inline_admin_form.id.value }}">
+                            {{ inline_admin_form.id }}
+                            <div class="d-none">
+                              {% if inline_admin_form.instance.pk %}
+                                  {{ inline_admin_form.DELETE }}
+                              {% endif %}
+                            </div>
+                            <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Objeto impuesto</label>
+                                {{ inline_admin_form.c_ObjetoImp }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Cantidad</label>
+                                {{ inline_admin_form.cantidad }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Valor unitario</label>
+                                {{ inline_admin_form.valorUnitario }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Importe</label>
+                                {{ inline_admin_form.importe }}
+                            </div>
+                            </div>
+                            <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Descripción</label>
+                                {{ inline_admin_form.descripcion }}
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label">Identificador</label>
+                                {{ inline_admin_form.noIdentificacion }}
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label">Unidad</label>
+                                {{ inline_admin_form.unidad }}
+                            </div>
+                            <div class="col-md-2 mb-3">
+                              <label class="form-label d-block">Impuestos y complementos</label>
+                              <div class="d-flex gap-2 align-items-start">
+                                <div class="dropdown grupo-impuestos">
+                                  <button class="btn btn-outline-secondary btn-sm btn-impuestos" type="button">
+                                    % Impuestos
+                                  </button>
+                                  <ul class="menu-impuestos" style="display: none; list-style: none; padding-left: 0;">
+                                    {% for impuesto in impuestos %}
+                                      <li class="dropdown-submenu position-relative">
+                                        <a class="dropdown-item impuesto-item" href="#" data-codigo="{{ impuesto.c_Impuesto }}">
+                                          {{ impuesto.descripcion }}
+                                        </a>
+                                        <ul class="dropdown-submenu-list" id="submenu-{{ impuesto.c_Impuesto }}" style="display: none; list-style: none; padding-left: 1rem;"></ul>
+                                      </li>
+                                    {% endfor %}
+                                  </ul>
+                                </div>
+                            
+                                <div class="dropdown grupo-complementos">
+                                  <button class="btn btn-outline-secondary btn-sm btn-complementos" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-puzzle-piece me-1"></i> Complementos
+                                  </button>
+                                  <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item complemento-opcion" data-tipo="cuenta_terceros">Cuenta a Terceros</a></li>
+                                    <li><a class="dropdown-item complemento-opcion" data-tipo="informacion_aduanera">Información Aduanera</a></li>
+                                    <li><a class="dropdown-item complemento-opcion" data-tipo="cuenta_predial">Cuenta Predial</a></li>
+                                    <li><a class="dropdown-item complemento-opcion" data-tipo="complemento_concepto">Complemento de Concepto</a></li>
+                                    <li><a class="dropdown-item complemento-opcion" data-tipo="parte">Partes</a></li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                            </div>
+                            <!-- Complemento de tipo -->
+                            {{ inline_admin_form.complemento_tipo.as_hidden }}
+
+                            <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Clave producto</label>
+                                {{ inline_admin_form.c_ClaveProdServ }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Descripción (SAT)</label>
+                                <input type="text" class="form-control descripcion-sat" readonly>
+
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Clave unidad</label>
+                                {{ inline_admin_form.c_ClaveUnidad }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Nombre unidad (SAT)</label>
+                                <input type="text" class="form-control nombreunidad-sat" readonly>
+
+                            </div>
+                            </div>
+                            <div class="row align-items-end ">
+                              
+                              <div class="col-md-2 mb-3">
+                                <label class="form-label">Descuento %</label>
+                                {{ inline_admin_form.descuento_porcentaje }}
+                              </div>
+
+                              <div class="col-md-2 mb-3">
+                                <label class="form-label">Descuento</label>
+                                {{ inline_admin_form.descuento }}
+                              </div>
+                            </div>
+
+                            <!-- Contenedor donde se inyectará el formulario parcial -->
+                            <div class="contenedor-complementos mt-2"></div>
+
+                            <!-- Impuestos anidados (adaptado a Admin Material) -->
+                            <div id="contenedor-impuestos-{{ forloop.counter0 }}">
+                            {% for nested_formset in inline_admin_form.nested_formsets %}
+                              <div class="card-header bg-light py-2 px-3">
+                                <strong class="text-dark text-sm">Impuestos</strong>
+                              </div>
+                                {{ nested_formset.management_form }}
+                                {{ nested_formset.non_form_errors }}
+
+                                {% for nested_form in nested_formset.forms %}
+                                  <div class="formulario-impuesto mb-3 px-2">
+                                    <div class="d-none">
+                                      {{ nested_form.id }}
+                                      {% if nested_form.instance.pk %}
+                                          {{ nested_form.DELETE }}
+                                      {% endif %}
+                                    </div>
+                                    <div class="row g-2 align-items-center">
+
+                                      <!-- Visual resumen del impuesto -->
+                                      <div class="col-md-4 d-flex align-items-center gap-2">
+                                        <!-- Icono lápiz -->
+                                        <i class="material-symbols-rounded text-secondary">edit</i>
+
+                                        <!-- Etiqueta dinámica del impuesto y tipo -->
+                                        <div class="badge bg-info text-white text-sm me-2 py-2 px-3 label-impuesto-tipo">
+                                          <!-- JS inserta aquí IVA Tras. -->
+                                        </div>
+
+                                        <!-- Valor de la tasa -->
+                                        {{ nested_form.porcentaje }}
+
+                                        <!-- Símbolo % -->
+                                        <span class="text-muted">%</span>
+                                      </div>
+
+                                      <!-- Incluido -->
+                                      <div class="col-md-2 text-center">
+                                        <label class="form-label d-block text-sm">Incluido</label>
+                                        {{ nested_form.incluido }}
+                                      </div>
+
+                                      <!-- Tipo -->
+                                      <div class="col-md-1">
+                                        <label class="form-label text-sm">Tipo</label>
+                                        
+                                        <div class="d-flex align-items-center gap-2">
+                                          <!-- Icono dinámico -->
+                                          <span class="material-symbols-outlined tipo-icono text-secondary cursor-pointer"
+                                                data-campo-id="{{ nested_form.tipo.id_for_label }}">
+                                            forward
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <!-- Importe -->
+                                      <div class="col-md-2">
+                                        <label class="form-label text-sm">Importe</label>
+                                        {{ nested_form.importe }}
+                                      </div>
+
+                                      <!-- Base -->
+                                      <div class="col-md-2">
+                                        <label class="form-label text-sm">Base</label>
+                                        {{ nested_form.base }}
+                                      </div>
+
+                                      <div class="col-md-1 text-center">
+                                        <!-- Botón eliminar -->
+                                        <button type="button" class="btn btn-sm btn-danger btn-delete-impuesto">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                      </div>
+
+                                      <!-- Campos ocultos -->
+                                      <div class="d-none">
+                                        {{ nested_form.c_Impuesto }}
+                                        {{ nested_form.c_TasaOCuota }}
+                                        {{ nested_form.c_TipoFactor }}
+                                        {{ nested_form.tipo }}
+                                      </div>
+                                    </div>
+                                  </div>
+                                {% endfor %}
+                            {% endfor %}
+                            </div>
+
+                            {# Oculta los campos hidden como id y comprobante si los hay #}
+                            {{ inline_admin_form.id }}
+                            {{ inline_admin_form.comprobante }}
+                            <button type="button" class="btn btn-danger btn-sm eliminar-concepto mt-2">
+                                <i class="fas fa-trash-alt"></i> Eliminar
+                            </button>
+                            
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Totales e Impuestos Globales -->
+                    <div class="row mt-3 align-items-start">
+                      <div class="col-md-8">
+                        <label class="form-label fw-bold">Cantidad con letra:</label>
+                        <span id="cantidad-letra" class="text-muted">(CANTIDAD EN LETRA)</span>
+                      </div>
+                      <div class="col-md-4">
+                        <table class="table table-sm">
+                          <tbody>
+                            <tr>
+                              <th class="text-end">Subtotal:</th>
+                              <td id="subtotal-general" class="text-end">$0.00</td>
+                            </tr>
+                            <tbody id="tabla-impuestos-desglosados"></tbody>
+                            <tr>
+                              <th class="text-end">Total de impuestos:</th>
+                              <td id="total-impuestos" class="text-end">$0.00</td>
+                            </tr>
+                            <tr>
+                              <th class="text-end">TOTAL:</th>
+                              <td id="total-general" class="text-end fw-bold">$0.00</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
+                    <div class="card-footer text-end">
+                        <button type="button" class="btn btn-success" onclick="agregarConcepto()">
+                        <i class="fas fa-plus"></i> Agregar concepto
+                        </button>
+                    </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+
+        <!-- Addenda personalizado -->
+        {% for inline_admin_formset in inline_admin_formsets %}
+          {% if inline_admin_formset.opts.verbose_name_plural == "Addendas" %}
+            <div class="col-md-12 mb-4">
+              <div class="card shadow-sm border border-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong class="mb-0">🧾 Addenda</strong>
+                </div>
+
+                <div class="card-footer text-end">
+                  <button type="button" class="btn btn-sm btn-success" id="btn-addenda">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger d-none" id="btn-remove-addenda">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+
+                <div class="card-body" id="contenedor-addenda" style="display: none;">
+                  {{ inline_admin_formset.formset.management_form }}
+                  {{ inline_admin_formset.non_form_errors }}
+
+                  {% for inline_admin_form in inline_admin_formset.forms %}
+                    <div class="d-none" data-nombre-formulario="{{ inline_admin_formset.opts.verbose_name|capfirst }}">
+                          {{ inline_admin_formset.non_form_errors }}
+                          {{ inline_admin_form.errors }}
+                    </div>
+                    <div class="formulario-addenda mb-4 border rounded p-3">
+                      {% if inline_admin_form.form.non_field_errors %}
+                        <div class="text-danger mb-2">{{ inline_admin_form.form.non_field_errors }}</div>
+                      {% endif %}
+
+                      <div class="row">
+                        <div class="col-md-5 mb-3">
+                          <label class="control-label">Tipo addenda</label>
+                          {{ inline_admin_form.addenda }}
+                        </div>
+                      </div>
+
+                      {{ inline_admin_form.id }}
+                      {{ inline_admin_form.comprobante }}
+                    </div>
+                  {% endfor %}
+
+                  <div id="formulario-tipo-addenda">
+                    <!-- Este div se llena con el partial correspondiente vía JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+
+    
+      {# Incluye aquí tu contenido visual tipo tarjetas y bloques que ya tenías definidos manualmente #}
+      <input type="hidden" name="latitud" id="inputLatitud">
+      <input type="hidden" name="longitud" id="inputLongitud">
+    {% endblock %}
+
+    <!-- botones personalizados -->
+    <div class="form-group">
+      
+      {% comment %} {% if object_id %}
+        <a href="{% url 'admin:getPDF' object_id 1 %}" class="button default" target="_blank">Generar PDF</a>
+        <!-- <a href="{% url 'admin:getPDF' object_id 2%}" class="button default" target="_blank">Timbrar PDF</a> -->
+        <!-- <a href="{% url 'admin:myapp_mymodel_generate_pdff' object_id %}" class="button default" target="_blank">Generar PDF</a> -->
+        <a href="{% url 'admin:myapp_mymodel_generate_xml' object_id %}" class="button default" target="_blank">Generar XML</a>
+      {% endif %} {% endcomment %}
+      
+      {% if original.tipo_documento != "timbrado" %}
+        <div class="d-flex justify-content-between flex-wrap mt-3">
+            <!-- Grupo izquierda -->
+            <div class="btn-group" role="group">
+                <button type="submit" name="_copy_form" class="btn btn-info">Copiar formulario</button>
+                <button type="submit" name="_generar_pdf" class="btn btn-danger">Generar PDF</button>
+                <button type="submit" name="_generar_xml" class="btn btn-warning">Generar XML</button>
+                <button type="submit" name="_facturar_timbrar" class="btn btn-success">Facturar y Timbrar</button>
+            </div>
+
+            <!-- Grupo derecha -->
+            <div class="btn-group" role="group">
+                <button type="submit" name="_save" class="btn btn-success">Guardar</button>
+                <button type="submit" name="_addanother" class="btn btn-info">Guardar y agregar otro</button>
+                <button type="submit" name="_continue" class="btn btn-warning">Guardar y continuar editando</button>
+                {% if original and original.pk %}
+                    <a href="{% url opts|admin_urlname:'delete' original.pk %}" 
+                      class="btn btn-danger">
+                      Eliminar
+                    </a>
+                {% endif %}
+                {% if changelist_url %}
+                  <a href="{{ changelist_url }}" class="btn btn-outline-secondary">⬅ Regresar</a>
+                {% endif %}
+            </div>
+        </div>
+
+
+      {% else %}
+        <div class="d-flex justify-content-between flex-wrap mt-3">
+            <!-- Grupo izquierda -->
+            <div class="btn-group" role="group">
+                <button type="submit" name="_copy_form" class="btn btn-info">Copiar formulario</button>
+                <button type="submit" name="_generar_pdf_timbrado" class="btn btn-danger">Generar PDF</button>
+                <button type="submit" name="_generar_xml_timbrado" class="btn btn-warning">Generar XML</button>
+            </div>
+
+            <!-- Grupo derecha -->
+            <div class="btn-group" role="group">
+              {% if changelist_url %}
+                  <a href="{{ changelist_url }}" class="btn btn-outline-secondary">⬅ Regresar</a>
+              {% endif %}
+            </div>
+        </div>
+      
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- jQuery (si no lo tienes cargado antes) -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Select2 -->
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+
+
+  <!-- Impuestos -->
+  <script>
+    window.tasasPorImpuesto = JSON.parse('{{ tasas_por_impuesto|safe|escapejs }}');
+  </script>
+  <script src="{% static 'js/impuestos.js' %}"></script>
+
+  <!-- Addenda formularios multiples -->
+  <script src="{% static 'js/addenda_terra.js' %}"></script>
+
+  <!-- Addenda cotrol para solo un formulario -->
+  <script src="{% static 'js/control_addenda.js' %}"></script>
+    
+  <!-- Script para agregar y eliminar dinámicamente formularios de conceptos -->
+  <script src="{% static 'js/conceptos.js' %}"></script>
+
+  <!-- Script para inicializar autocompletado una vez que jQuery y Select2 estén disponibles -->
+  <script src="{% static 'js/autocompletado.js' %}"></script>
+
+  <!-- Script para cfd relacionados y eliminar dinámicamente formularios de conceptos -->
+  <script src="{% static 'js/cfdi_relacionados.js' %}"></script>
+
+  <!-- scripts para  calculos  -->
+  <script src="{% static 'js/calculo_importe.js' %}"></script>
+
+  <!-- scripts para agregar los complementos de conceptos -->
+  <script src="{% static 'js/control_complementos_conceptos.js' %}"></script>
+
+  <!-- scripts para  agregar multiples complementos de un mismo tipo a los conceptos  -->
+  <script src="{% static 'js/cuenta_predial.js' %}"></script>
+  <script src="{% static 'js/info_aduana.js' %}"></script>
+  <script src="{% static 'js/por_partes.js' %}"></script>
+  <script src="{% static 'js/obtener_ubicacion.js' %}"></script>
+
+  <script>
+    function sincronizarDescuento(contenedorConcepto) {
+      const porcentajeInput = contenedorConcepto.querySelector('[name$="descuento_porcentaje"]');
+      const descuentoInput = contenedorConcepto.querySelector('[name$="descuento"]');
+      const importeInput = contenedorConcepto.querySelector('[id$="-importe"]');
+
+      if (!porcentajeInput || !descuentoInput || !importeInput) return;
+
+      const actualizarDesdePorcentaje = () => {
+        const porcentaje = parseFloat(porcentajeInput.value || 0) / 100;
+        const importe = parseFloat(importeInput.value || 0);
+
+        const descuentoCalculado = importe * porcentaje;
+        descuentoInput.value = descuentoCalculado.toFixed(2);
+        actualizarTotalesCompletos();
+      };
+
+      const actualizarDesdeMonto = () => {
+        const descuento = parseFloat(descuentoInput.value || 0);
+        const importe = parseFloat(importeInput.value || 0);
+
+        const porcentajeCalculado = (importe > 0) ? (descuento / importe) * 100 : 0;
+        porcentajeInput.value = porcentajeCalculado.toFixed(6);
+        actualizarTotalesCompletos();
+      };
+
+      porcentajeInput.addEventListener('input', actualizarDesdePorcentaje);
+      descuentoInput.addEventListener('input', actualizarDesdeMonto);
+    }
+
+    document.querySelectorAll('.formulario-concepto').forEach(contenedorConcepto => {
+      sincronizarDescuento(contenedorConcepto);
+    });
+  </script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const bloques = document.querySelectorAll('[data-nombre-formulario]');
+        const htmlFinal = [];
+        let totalErrores = 0;
+
+        bloques.forEach(function (bloque) {
+            const nombreFormulario = bloque.dataset.nombreFormulario || 'Formulario';
+            const errorListItems = bloque.querySelectorAll('.errorlist > li');
+            const mensajes = new Set();
+            let html = `<b>${nombreFormulario}</b><ul style="text-align: left;">`;
+
+            errorListItems.forEach(function (li) {
+                const subErrors = li.querySelectorAll('ul.errorlist li');
+                const campo = li.firstChild?.textContent?.trim();
+
+                if (subErrors.length > 0) {
+                    subErrors.forEach(function (subLi) {
+                        const texto = subLi.textContent.trim();
+                        const mensajeFinal = campo + ': ' + texto;
+                        if (!mensajes.has(mensajeFinal)) {
+                            mensajes.add(mensajeFinal);
+                            html += '<li>' + mensajeFinal + '</li>';
+                            totalErrores++;
+                        }
+                    });
+                } else {
+                    const texto = li.textContent.trim();
+                    let yaMostrado = false;
+                    mensajes.forEach(msg => {
+                        if (msg.endsWith(': ' + texto)) {
+                            yaMostrado = true;
+                        }
+                    });
+                    if (!yaMostrado && !mensajes.has(texto)) {
+                        mensajes.add(texto);
+                        html += '<li>' + texto + '</li>';
+                        totalErrores++;
+                    }
+                }
+            });
+
+            html += '</ul>';
+            if (mensajes.size > 0) {
+                htmlFinal.push(html);
+            }
+        });
+
+        if (totalErrores > 0) {
+            Swal.fire({
+                title: 'Errores en el formulario',
+                html: htmlFinal.join('<br>'),
+                icon: 'error'
+            });
+        }
+    });
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const emisorDefaults = {{ emisor_defaults|default:"{}"|safe }};
+      if (emisorDefaults && Object.keys(emisorDefaults).length) {
+        const prefix = 'id_emisor_set-0-';
+        ['rfc', 'nombre', 'c_RegimenFiscal', 'facAtrAdquirente'].forEach(function (field) {
+          const input = document.getElementById(prefix + field);
+          if (input && !input.value) {
+            input.value = emisorDefaults[field] || '';
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+      }
+    });
+  </script>
+
+
+
+
+
+
+{% endblock %}

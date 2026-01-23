@@ -1,0 +1,342 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .qr-sign-wrapper {
+      min-height: calc(100vh - 120px);
+      background: #ededed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem 3rem;
+    }
+
+    .qr-sign-card {
+      width: 100%;
+      max-width: 620px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 25px 45px rgba(15, 23, 42, 0.15);
+      overflow: hidden;
+      border: 1px solid #d7d7d7;
+    }
+
+    .qr-sign-header {
+      background: linear-gradient(90deg, #262626 0%, #3d3d3d 100%);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+    }
+
+    .qr-sign-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .qr-sign-brand span:last-child {
+      font-size: 0.85rem;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .qr-sign-body {
+      padding: 1.75rem 2rem 2.25rem;
+    }
+
+    .qr-sign-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .qr-sign-field label {
+      font-weight: 600;
+      color: #1f2937;
+      font-size: 0.9rem;
+    }
+
+    .qr-sign-field input {
+      border: 1px solid #cbd5f5;
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      background: #f8fafc;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .qr-sign-field input[readonly] {
+      cursor: default;
+      user-select: none;
+    }
+
+    .qr-sign-signature {
+      margin: 1.5rem 0 1.25rem;
+    }
+
+    .qr-sign-signature label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: #1f2937;
+    }
+
+    .qr-sign-signature small {
+      display: block;
+      color: #6b7280;
+      margin-bottom: 0.75rem;
+    }
+
+    .qr-signature-box {
+      width: 100%;
+      border: 2px dashed #9ca3af;
+      border-radius: 8px;
+      background: #f8fafc;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .qr-signature-canvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .qr-signature-placeholder {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: 600;
+      color: #94a3b8;
+      pointer-events: none;
+      text-align: center;
+      padding: 0 1rem;
+    }
+
+    .qr-signature-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+
+    .qr-signature-actions button {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #b11016;
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+
+    .qr-signature-actions button:hover {
+      text-decoration: underline;
+    }
+
+    .qr-sign-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 1.75rem;
+    }
+
+    .qr-sign-actions .btn {
+      min-width: 140px;
+      font-weight: 600;
+    }
+
+    .qr-sign-actions .btn-primary {
+      background: #b11016;
+      border-color: #b11016;
+      box-shadow: 0 12px 24px rgba(177, 16, 22, 0.3);
+    }
+
+    @media (max-width: 640px) {
+      .qr-sign-body {
+        padding: 1.5rem;
+      }
+
+      .qr-sign-card {
+        border-radius: 0;
+      }
+
+      .qr-sign-actions {
+        flex-direction: column;
+      }
+
+      .qr-sign-actions .btn {
+        width: 100%;
+      }
+    }
+  </style>
+{% endblock extrastyle %}
+
+{% block content %}
+  <div class="qr-sign-wrapper">
+    <div class="qr-sign-card">
+      <div class="qr-sign-header">
+        <div class="qr-sign-brand">
+          <img src="{% static 'LadoClientes/img/logo-tecfidg solutions.png' %}" alt="tecfidg solutions" height="26"/>
+          <span>tecfidg solutions</span>
+        </div>
+        <div class="qr-sign-brand">
+          <span>Manifiesto</span>
+        </div>
+      </div>
+      <div class="qr-sign-body">
+        <form action="{% url 'mi_admin:manifiesto_firmar' %}" method="post">
+          {% csrf_token %}
+          <div class="qr-sign-field">
+            <label for="qrContractName">Nombre o Razón Social</label>
+            <input id="qrContractName" type="text" value="{{ qr_contract.nombre }}" readonly>
+          </div>
+          <div class="qr-sign-field">
+            <label for="qrContractRfc">RFC</label>
+            <input id="qrContractRfc" type="text" value="{{ qr_contract.rfc }}" readonly>
+          </div>
+          <div class="qr-sign-field">
+            <label for="qrContractEmail">Email</label>
+            <input id="qrContractEmail" type="text" value="{{ qr_contract.correo }}" readonly>
+          </div>
+          <div class="qr-sign-field">
+            <label for="qrContractAddress">Dirección</label>
+            <input id="qrContractAddress" type="text" value="{{ qr_contract.direccion }}" readonly>
+          </div>
+          <div class="qr-sign-signature">
+            <label for="qrSignatureCanvas">Firma a mano</label>
+            <small>Use su dedo o un lápiz digital para escribir la firma dentro del recuadro.</small>
+            <div class="qr-signature-box">
+              <canvas id="qrSignatureCanvas" class="qr-signature-canvas"></canvas>
+              <span id="qrSignaturePlaceholder" class="qr-signature-placeholder">
+                Dibuja tu firma aquí
+              </span>
+            </div>
+            <div class="qr-signature-actions">
+              <span>Firma digital del representante</span>
+              <button type="button" id="qrSignatureClear">Limpiar firma</button>
+            </div>
+            <input type="hidden" name="qr_signature_data" id="qrSignatureData" />
+          </div>
+          <div class="qr-sign-actions">
+            <a class="btn btn-outline-secondary" href="{% url 'mi_admin:manifiesto_contrato' %}">Regresar</a>
+            <button class="btn btn-primary" type="submit">Firmar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const canvas = document.getElementById('qrSignatureCanvas');
+      if (!canvas) {
+        return;
+      }
+      const ctx = canvas.getContext('2d');
+      const placeholder = document.getElementById('qrSignaturePlaceholder');
+      const clearButton = document.getElementById('qrSignatureClear');
+      const hiddenInput = document.getElementById('qrSignatureData');
+      const form = canvas.closest('form');
+      let isDrawing = false;
+      let hasDrawn = false;
+
+      const setCanvasSize = function () {
+        const boxWidth = canvas.parentElement.clientWidth;
+        canvas.width = boxWidth;
+        canvas.height = 220;
+        canvas.style.width = boxWidth + 'px';
+        canvas.style.height = '220px';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#111827';
+      };
+
+      const updatePlaceholder = function () {
+        if (!placeholder) {
+          return;
+        }
+        placeholder.style.display = hasDrawn ? 'none' : 'block';
+      };
+
+      const getPosition = function (event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      };
+
+      const startDrawing = function (event) {
+        event.preventDefault();
+        isDrawing = true;
+        const position = getPosition(event);
+        ctx.beginPath();
+        ctx.moveTo(position.x, position.y);
+      };
+
+      const draw = function (event) {
+        if (!isDrawing) {
+          return;
+        }
+        event.preventDefault();
+        const position = getPosition(event);
+        ctx.lineTo(position.x, position.y);
+        ctx.stroke();
+        hasDrawn = true;
+        updatePlaceholder();
+      };
+
+      const stopDrawing = function (event) {
+        if (!isDrawing) {
+          return;
+        }
+        event.preventDefault();
+        ctx.closePath();
+        isDrawing = false;
+      };
+
+      const clearSignature = function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        hasDrawn = false;
+        hiddenInput.value = '';
+        updatePlaceholder();
+      };
+
+      canvas.addEventListener('pointerdown', startDrawing);
+      canvas.addEventListener('pointermove', draw);
+      canvas.addEventListener('pointerup', stopDrawing);
+      canvas.addEventListener('pointerleave', stopDrawing);
+
+      if (clearButton) {
+        clearButton.addEventListener('click', function (event) {
+          event.preventDefault();
+          clearSignature();
+        });
+      }
+
+      if (form) {
+        form.addEventListener('submit', function () {
+          hiddenInput.value = hasDrawn ? canvas.toDataURL('image/png') : '';
+        });
+      }
+
+      setCanvasSize();
+      updatePlaceholder();
+    });
+  </script>
+{% endblock extra_js %}

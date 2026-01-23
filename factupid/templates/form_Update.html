@@ -1,0 +1,179 @@
+{% extends 'body.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+
+<div>
+    {% load invoice_breadcrumbs %}
+    {% block invoice_breadcrumbs %}
+        {% breadcrumb_url "Inicio" "invoice:inicio" %}
+        {% breadcrumb_url "Catálogo de Clientes" "invoice:client_list" %}
+        {% breadcrumb "Editar cliente" %}
+       
+       
+    {% endblock %}
+</div>
+
+<br>
+
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'moral' %}active{% endif %}" id="moral-tab" data-toggle="tab" href="#moral" role="tab" aria-controls="moral" aria-selected="true">Persona Moral</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'fisica' %}active{% endif %}" id="fisica-tab" data-toggle="tab" href="#fisica" role="tab" aria-controls="fisica" aria-selected="false">Persona Física</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tipoReceptor == 'extranjero' %}active{% endif %}" id="extranjero-tab" data-toggle="tab" href="#extranjero" role="tab" aria-controls="extranjero" aria-selected="false">Extranjero</a>
+    </li>
+</ul>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade {% if tipoReceptor == 'moral' %}show active{% endif %}" id="moral" role="tabpanel" aria-labelledby="moral-tab">
+        <form method="post" enctype="multipart/form-data" action="."  autocomplete="off"  class="needs-validation" novalidate>
+            <input type="hidden" name="submit_type" value="">
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    <div class="container">
+                        <div class="row">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" name="moral_submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> Guardar registro
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="tab-pane fade {% if tipoReceptor == 'fisica' %}show active{% endif %}" id="fisica" role="tabpanel" aria-labelledby="fisica-tab">
+        <form method="post" enctype="multipart/form-data" action="."  autocomplete="off"  class="needs-validation" novalidate>
+        <input type="hidden" name="submit_type" value="">
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    <div class="container">
+                        <div class="row">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" name="fisica_submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> Guardar registro
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="tab-pane fade {% if tipoReceptor == 'extranjero' %}show active{% endif %}" id="extranjero" role="tabpanel" aria-labelledby="extranjero-tab">
+        <form method="post" enctype="multipart/form-data" action="."  autocomplete="off" class="needs-validation" novalidate>
+        <input type="hidden" name="submit_type" value="">
+            <div class="card card-default">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-plus"></i>
+                        {{ title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% csrf_token %}
+                    <div class="container">
+                        <div class="row">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group col-md-6">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                                    {{ field }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" name="extranjero_submit" class="btn btn-primary btn-flat">
+                        <i class="fas fa-save"></i> Guardar registro
+                    </button>
+                    <a href="{{ list_url }}" class="btn btn-primary btn-flat">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var tipoReceptor = "{{ tipoReceptor }}";
+    var tabButtons = document.querySelectorAll('.nav-link');
+    tabButtons.forEach(function (button) {
+        if (!button.id.includes(tipoReceptor)) {
+            button.classList.add('disabled');
+        }
+    });
+});
+
+ // Captura el clic en los botones de envío y establece el tipo de envío
+    $('form').on('click', 'button[type="submit"]', function() {
+        var submitType = $(this).attr('name');
+        $(this).closest('form').find('input[name="submit_type"]').val(submitType);
+    });
+
+
+$('form').on('submit', function (e) {
+    e.preventDefault();
+    cargando()
+    var formData = new FormData(this);
+    $.ajax({
+        url: window.location.pathname,
+        type: 'POST',
+        data: formData,
+        processData: false,  // Tell jQuery not to process the data
+        contentType: false,  // Tell jQuery not to set contentType
+        dataType: 'json'
+    }).done(function (data) {
+        console.log(!data.hasOwnProperty('error'))
+        if (!data.hasOwnProperty('error')) {
+            window.location.href = '{{ list_url }}';
+            return false;
+        }
+        message_error(data.error)
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        alert(textStatus + ': ' + errorThrown)
+    }).always(function (data) {
+
+    });
+});
+</script>
+
+{% endblock %}

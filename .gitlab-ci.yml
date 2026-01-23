@@ -1,0 +1,353 @@
+# stages:
+#   - prepare
+#   - test
+#   - deploy
+
+# before_staging:
+#   stage: prepare
+#   tags:
+#     - staging
+#   script:
+#     - whoami
+#     - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+#     - git fetch --all
+#     - git reset --hard origin/main
+#     - git pull origin main
+
+# linter:
+#   stage: test
+#   tags:
+#     - staging
+#   script:
+#     - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+#     - /home/iibarra/proyectosGitLab/venv/bin/black . || true
+#     - /home/iibarra/proyectosGitLab/venv/bin/python manage.py test
+
+# after_staging:
+#   stage: deploy
+#   tags:
+#     - staging
+#   script:
+#     - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+#     - /home/iibarra/proyectosGitLab/venv/bin/pip install -r requirements.txt
+#     - /home/iibarra/proyectosGitLab/venv/bin/python manage.py migrate --noinput
+#     - /home/iibarra/proyectosGitLab/venv/bin/python manage.py compilemessages || true
+#     - /home/iibarra/proyectosGitLab/venv/bin/python manage.py collectstatic --no-input
+#     - sudo systemctl restart gunicorn
+
+stages:
+ - prepare
+ - test
+ - deploy
+ - utility 
+
+# ========== PREPARE ==========
+
+before_staging:
+ stage: prepare
+ tags:
+   - app2
+ only:
+   - borrador
+ script:
+   - whoami
+   - cd /home/iibarra/proyectosGitLab/factupid-dev
+   - git fetch --all
+   - git checkout borrador
+   - git reset --hard origin/borrador
+   - git pull origin borrador
+
+before_production:
+ stage: prepare
+ tags:
+   - app1
+ only:
+   - borrador
+ script:
+   - whoami
+   - cd /home/iibarra/proyectosGitLab/factupid-dev
+   - git fetch --all
+   - git checkout borrador
+   - git reset --hard origin/borrador
+   - git pull origin borrador
+
+# ========== TEST ==========
+
+linter_staging:
+ stage: test
+ tags:
+   - app2
+ only:
+   - borrador
+
+ variables:
+    CI_ENVIRONMENT: "staging"
+
+ script:
+   - cd $CI_PROJECT_DIR/factupid
+
+   # === INSTALAR DEPENDENCIAS PRIMERO ===
+   - echo "=== Instalando dependencias ==="
+   - /home/iibarra/proyectosGitLab/venv/bin/pip install -r requirements.txt
+
+   # Crear archivo .env temporal (necesario para manage.py)
+   - echo "=== Creando archivo .env temporal para pruebas ==="
+   - echo "SECRET_KEY=${SECRET_KEY}" > .env
+   - echo "DEBUG=False" >> .env
+   - echo "DB_NAME=${DB_NAME}" >> .env
+   - echo "DB_USER=${DB_USER}" >> .env
+   - echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+   - echo "DB_HOST=${DB_HOST}" >> .env
+   - echo "DB_PORT=${DB_PORT}" >> .env
+   - echo "EMAIL_HOST=${EMAIL_HOST}" >> .env
+   - echo "EMAIL_PORT=${EMAIL_PORT}" >> .env
+   - echo "EMAIL_USE_TLS=True" >> .env
+   - echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+   - echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+   - echo "PAC_USER=${PAC_USER}" >> .env
+   - echo "PAC_PASSWORD=${PAC_PASSWORD}" >> .env
+   - echo "DOMAIN=${DOMAIN}" >> .env
+   - echo "URL_TIMBRADO=${URL_TIMBRADO}" >> .env
+   - echo "URL_CANCELACION=${URL_CANCELACION}" >> .env
+   - echo "URL_REGISTRO_CLIENTES=${URL_REGISTRO_CLIENTES}" >> .env
+   - echo "URL_VALIDACION=${URL_VALIDACION}" >> .env
+   - echo "URL_UTILITIES=${URL_UTILITIES}" >> .env
+   - echo "URL_SIGNCONTRACT=${URL_SIGNCONTRACT}" >> .env
+   - echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> .env
+
+   # Mostrar parte del .env (seguro)
+   - echo "=== Variables cargadas ==="
+   - grep -E "DB_|DEBUG|EMAIL_" .env
+
+   # Linter
+   - /home/iibarra/proyectosGitLab/venv/bin/black . || true
+   # Tests
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py test --noinput
+
+
+linter_production:
+ stage: test
+ tags:
+   - app1
+ only:
+   - borrador
+ variables:
+    CI_ENVIRONMENT: "production"
+
+ script:
+   - export CI_ENVIRONMENT=production
+   - cd $CI_PROJECT_DIR/factupid
+
+   # === INSTALAR DEPENDENCIAS PRIMERO ===
+   - echo "=== Instalando dependencias ==="
+   - /home/iibarra/proyectosGitLab/venv/bin/pip install -r requirements.txt
+
+   # Crear archivo .env temporal (necesario para manage.py)
+   - echo "=== Creando archivo .env temporal para pruebas ==="
+   - echo "SECRET_KEY=${SECRET_KEY}" > .env
+   - echo "DEBUG=False" >> .env
+   - echo "DB_NAME=${DB_NAME}" >> .env
+   - echo "DB_USER=${DB_USER}" >> .env
+   - echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+   - echo "DB_HOST=${DB_HOST}" >> .env
+   - echo "DB_PORT=${DB_PORT}" >> .env
+   - echo "EMAIL_HOST=${EMAIL_HOST}" >> .env
+   - echo "EMAIL_PORT=${EMAIL_PORT}" >> .env
+   - echo "EMAIL_USE_TLS=True" >> .env
+   - echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+   - echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+   - echo "PAC_USER=${PAC_USER}" >> .env
+   - echo "PAC_PASSWORD=${PAC_PASSWORD}" >> .env
+   - echo "DOMAIN=${DOMAIN}" >> .env
+   - echo "URL_TIMBRADO=${URL_TIMBRADO}" >> .env
+   - echo "URL_CANCELACION=${URL_CANCELACION}" >> .env
+   - echo "URL_REGISTRO_CLIENTES=${URL_REGISTRO_CLIENTES}" >> .env
+   - echo "URL_VALIDACION=${URL_VALIDACION}" >> .env
+   - echo "URL_UTILITIES=${URL_UTILITIES}" >> .env
+   - echo "URL_SIGNCONTRACT=${URL_SIGNCONTRACT}" >> .env
+   - echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> .env
+
+   # Mostrar parte del .env (seguro)
+   - echo "=== Variables cargadas ==="
+   - grep -E "DB_|DEBUG|EMAIL_" .env
+
+   # Linter
+   - /home/iibarra/proyectosGitLab/venv/bin/black . || true
+   # Tests
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py test --noinput
+
+# ========== DEPLOY ==========
+
+after_staging:
+ stage: deploy
+ tags:
+   - app2
+ only:
+   - borrador
+ script:
+   - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+   - /home/iibarra/proyectosGitLab/venv/bin/pip install -r requirements.txt
+   
+   # Crear .env de entorno (idéntico al anterior)
+   - echo "=== Creando archivo .env de despliegue ==="
+   - echo "SECRET_KEY=${SECRET_KEY}" > .env
+   - echo "DEBUG=False" >> .env
+   - echo "DB_NAME=${DB_NAME}" >> .env
+   - echo "DB_USER=${DB_USER}" >> .env
+   - echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+   - echo "DB_HOST=${DB_HOST}" >> .env
+   - echo "DB_PORT=${DB_PORT}" >> .env
+   - echo "EMAIL_HOST=${EMAIL_HOST}" >> .env
+   - echo "EMAIL_PORT=${EMAIL_PORT}" >> .env
+   - echo "EMAIL_USE_TLS=True" >> .env
+   - echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+   - echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+   - echo "PAC_USER=${PAC_USER}" >> .env
+   - echo "PAC_PASSWORD=${PAC_PASSWORD}" >> .env
+   - echo "DOMAIN=${DOMAIN}" >> .env
+   - echo "URL_TIMBRADO=${URL_TIMBRADO}" >> .env
+   - echo "URL_CANCELACION=${URL_CANCELACION}" >> .env
+   - echo "URL_REGISTRO_CLIENTES=${URL_REGISTRO_CLIENTES}" >> .env
+   - echo "URL_VALIDACION=${URL_VALIDACION}" >> .env
+   - echo "URL_UTILITIES=${URL_UTILITIES}" >> .env
+   - echo "URL_SIGNCONTRACT=${URL_SIGNCONTRACT}" >> .env
+   - echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> .env
+
+   # DB sync
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py migrate --noinput
+   # Static sync
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py compilemessages || true
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py collectstatic --no-input
+   # Restart web server
+   - sudo systemctl restart gunicorn
+
+after_production:
+ stage: deploy
+ tags:
+   - app1
+ only:
+   - borrador
+ script:
+   - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+
+   - /home/iibarra/proyectosGitLab/venv/bin/pip install -r requirements.txt
+   
+   # Crear .env de entorno (idéntico al anterior)
+   - echo "=== Creando archivo .env de despliegue ==="
+   - echo "SECRET_KEY=${SECRET_KEY}" > .env
+   - echo "DEBUG=False" >> .env
+   - echo "DB_NAME=${DB_NAME}" >> .env
+   - echo "DB_USER=${DB_USER}" >> .env
+   - echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+   - echo "DB_HOST=${DB_HOST}" >> .env
+   - echo "DB_PORT=${DB_PORT}" >> .env
+   - echo "EMAIL_HOST=${EMAIL_HOST}" >> .env
+   - echo "EMAIL_PORT=${EMAIL_PORT}" >> .env
+   - echo "EMAIL_USE_TLS=True" >> .env
+   - echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+   - echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+   - echo "PAC_USER=${PAC_USER}" >> .env
+   - echo "PAC_PASSWORD=${PAC_PASSWORD}" >> .env
+   - echo "DOMAIN=${DOMAIN}" >> .env
+   - echo "URL_TIMBRADO=${URL_TIMBRADO}" >> .env
+   - echo "URL_CANCELACION=${URL_CANCELACION}" >> .env
+   - echo "URL_REGISTRO_CLIENTES=${URL_REGISTRO_CLIENTES}" >> .env
+   - echo "URL_VALIDACION=${URL_VALIDACION}" >> .env
+   - echo "URL_UTILITIES=${URL_UTILITIES}" >> .env
+   - echo "URL_SIGNCONTRACT=${URL_SIGNCONTRACT}" >> .env
+   - echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> .env
+   
+   # DB sync
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py migrate --noinput
+   # Static sync
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py compilemessages || true
+   - /home/iibarra/proyectosGitLab/venv/bin/python manage.py collectstatic --no-input
+  #  # Script de actualización de catálogo
+  #  - /home/iibarra/proyectosGitLab/venv/bin/python /home/iibarra/proyectosGitLab/factupid-dev/actualizacioncatalogos.py
+   # Restart web server 
+   - sudo systemctl restart gunicorn
+
+# ========== CATÁLOGOS ==========
+
+actualiza_catalogos:
+  stage: utility           
+  tags:
+    - updatedb           
+  only:
+    - factupid-DB                
+  script:
+    - echo "=== Iniciando actualización de catálogos SAT ==="
+    - cd /home/iibarra/proyectosGitLab/factupid-dev/
+    - /home/iibarra/proyectosGitLab/venv/bin/python actualizacioncatalogos.py
+    - echo "=== Actualización completada ==="
+
+# ========== TEST .ENV CREATION (borrador) ==========
+
+# test_env_borrador:
+#   stage: utility
+#   tags:
+#     - staging    # puedes usar también "production" si prefieres ese runner
+#   only:
+#     - borrador
+#   script:
+#     - echo "=== Creando archivo .env temporal ==="
+#     - cd /home/iibarra/proyectosGitLab/factupid-dev/factupid
+
+#     # Variables que usarías normalmente
+#     - echo "SECRET_KEY=${SECRET_KEY}" > .env
+#     - echo "DEBUG=False" >> .env
+#     - echo "DB_NAME=${DB_NAME}" >> .env
+#     - echo "DB_USER=${DB_USER}" >> .env
+#     - echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+#     - echo "DB_HOST=${DB_HOST}" >> .env
+#     - echo "DB_PORT=${DB_PORT}" >> .env
+#     - echo "PAC_USER=${PAC_USER}" >> .env
+#     - echo "PAC_PASSWORD=${PAC_PASSWORD}" >> .env
+#     - echo "EMAIL_HOST=${EMAIL_HOST}" >> .env
+#     - echo "EMAIL_PORT=${EMAIL_PORT}" >> .env
+#     - echo "EMAIL_USE_TLS=True" >> .env
+#     - echo "EMAIL_HOST_USER=${EMAIL_HOST_USER}" >> .env
+#     - echo "EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}" >> .env
+#     - echo "DOMAIN=${DOMAIN}" >> .env
+
+#     - echo "=== Archivo .env generado ==="
+#     - cat .env
+
+
+
+# stages:
+#   - build
+#   - test
+
+# # Trabajo para compilar el código
+# build-job:
+#   stage: build
+#   tags:
+#     - staging
+#   script:
+#     - echo "Compilando el proyecto..."
+#     # Aquí van los comandos para instalar dependencias y compilar el código
+#     - echo "Proyecto compilado."
+
+# # Trabajo para ejecutar pruebas unitarias (ejecuta en paralelo con otro test)
+# unit-test-job:
+#   stage: test
+#   tags:
+#     - staging
+#   script:
+#     - echo "Ejecutando pruebas unitarias..."
+#     # Aquí van los comandos para ejecutar pruebas unitarias
+#     - echo "Pruebas unitarias pasaron."
+
+# # Trabajo para ejecutar pruebas de integración (ejecuta en paralelo con unit-test-job)
+# integration-test-job:
+#   stage: test
+#   tags:
+#     - staging
+#   script:
+#     - echo "Ejecutando pruebas de integración..."
+#     # Aquí van los comandos para ejecutar pruebas de integración
+#     - echo "Pruebas de integración pasaron."
+
+
+

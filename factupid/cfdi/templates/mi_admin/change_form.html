@@ -1,0 +1,59 @@
+{% extends "admin/change_form.html" %} {% load static %}
+<!-- Carga la biblioteca static -->
+
+{% block submit_buttons_bottom %} {{ block.super }}
+
+  <i class="fas fa-save"></i> GUARDAR COMO BORRADOR</button>
+
+    
+<button type="submit" name="_generar_pdf" class="button">Generar PDF</button>
+
+
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" name="_facturar_timbrar" class="button">
+    Facturar y Timbrar
+  </button>
+
+  <a href="{% url 'admin:myapp_mymodel_generate_xml' object_id %}" class="button" target="_blank">
+    Vista previa XML
+  </a>
+  <a href="{% url 'admin:myapp_mymodel_generate_pdf' object_id %}" class="button" target="_blank">
+    Generar PDF Libreria
+  </a>
+</form>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $("#id_informacion_fiscal").change(function () {
+            var infoFiscalId = $(this).val();
+            if (infoFiscalId) {
+                $.ajax({
+                    url: "{% url 'admin:get_informacion_fiscal' %}",
+                    data: {
+                        'info_fiscal_id': infoFiscalId
+                    },
+                    success: function (data) {
+                        $("#id_nombre").val(data.nombre);
+                        $("#id_rfc").val(data.rfc);
+                        $("#id_descripcion").val(data.descripcion);
+                        $("#id_codigo_postal").val(data.codigo_postal);
+                        $("#id_activo").prop('checked', data.activo);
+                        $("#id_regimen_fiscal").val(data.regimen_fiscal);
+                    }
+                });
+            } else {
+                $("#id_nombre, #id_rfc, #id_descripcion, #id_codigo_postal").val('');
+                $("#id_activo").prop('checked', false);
+                $("#id_regimen_fiscal").val('');
+            }
+        });
+    });
+</script>
+
+
+
+{% endblock %}

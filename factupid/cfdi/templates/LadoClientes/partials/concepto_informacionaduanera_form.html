@@ -1,0 +1,49 @@
+<!-- concepto_informacionaduanera_form.html -->
+<div class="formulario-informacionaduanera mb-4 border rounded p-3 position-relative">
+  <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 btn-eliminar-complemento" title="Eliminar complemento">
+    <i class="fas fa-trash-alt"></i> <!-- Usa el ícono que prefieras -->
+  </button>
+  <h4>Información Aduanera</h4>
+
+  {{ formset.management_form }}
+
+  <div id="informacionaduanera-formset-container">
+    {% for form in formset %}
+      <div class="formulario-informacionaduanera-item border rounded p-3 mb-3 position-relative" data-form-index="{{ forloop.counter0 }}">
+        <div class="row">
+          <div class="col-md-3 mb-2">
+            <label>Aduana</label>
+            {{ form.aduana }}
+          </div>
+          <div class="col-md-3 mb-2">
+            <label>Patente</label>
+            {{ form.patente }}
+          </div>
+          <div class="col-md-2 mb-2">
+            <label>Ejercicio</label>
+            {{ form.ejercicio }}
+          </div>
+        </div>
+        {{ form.id }} 
+        {{ form.concepto }}
+        <div class="d-none">
+          
+          {% if form.instance.pk %}
+              {{ form.DELETE }}
+          {% endif %}
+        </div>
+
+        <button type="button" class="btn btn-sm btn-danger btn-delete-informacionaduanera" style="position:absolute; top:0.5rem; right:0.5rem;">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="text-end">
+    <button type="button" class="btn btn-sm btn-success btn-agregar-formulario" id="btn-agregar-informacionaduanera">
+      <i class="fas fa-plus"></i> Agregar Información Aduanera
+    </button>
+  </div>
+</div>

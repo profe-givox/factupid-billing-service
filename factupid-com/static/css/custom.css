@@ -1,0 +1,142 @@
+.services-plans {
+  margin: 3rem 0;
+  text-align: center;
+}
+
+.services-plans h2 {
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+}
+
+.services-plans p {
+  margin: 0 auto 2rem;
+  max-width: 720px;
+  color: #4a4a4a;
+}
+
+.plans-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.plan-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.plan-id {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.plan-type {
+  font-size: 0.95rem;
+  margin: 0.5rem 0 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-card {
+  border-radius: 10px;
+  color: #fff;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  position: relative;
+  min-height: 240px;
+}
+
+.plan-card .plan-badge {
+  background: #2c3e50;
+  color: #fff;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+
+.plan-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.plan-card .plan-volume {
+  margin: 0.25rem 0 1rem;
+  font-weight: 600;
+}
+
+.plan-card .plan-price {
+  font-size: 2rem;
+  margin: 0 0 0.15rem;
+  font-weight: 700;
+}
+
+.plan-card .plan-interval {
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.plan-card .plan-action {
+  margin-top: auto;
+  background: #fff;
+  color: #2c3e50;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.services-plans .plan-action {
+  display: inline-block;
+  background: #fff;
+  color: #2c3e50;
+  border-radius: 4px;
+  padding: 0.6rem 1.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.plan-orange {
+  background: #e7623a;
+}
+
+.plan-pink {
+  background: #e35174;
+}
+
+.plan-salmon {
+  background: #f1904a;
+}
+
+.plan-blue {
+  background: #2f66a0;
+}
+
+.plan-indigo {
+  background: #3b4cc0;
+}
+
+.plan-teal {
+  background: #39a6a6;
+}
+
+@media (max-width: 600px) {
+  .plan-card {
+    min-height: auto;
+  }
+}

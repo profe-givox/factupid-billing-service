@@ -1,0 +1,275 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load i18n admin_urls static admin_modify %}
+{% load split_filters %}
+
+
+{% block extrahead %}
+    {{ block.super }}
+    <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static 'cfdi/css/bitacora.css' %}">
+    {{ media }}
+{% endblock %}
+
+{% block extrastyle %}
+    <link rel="stylesheet" type="text/css" href="{% static "assets/css/forms.css" %}">
+{% endblock %}
+
+{% if not is_popup %}
+    {% block breadcrumbs %}
+        <div class="page-header">
+            <div class="page-block">
+              <div class="row align-items-center">
+                <div class="col-md-12">
+                  <div class="page-header-title">
+                    <h5 class="m-b-10">{{ opts.verbose_name_plural|capfirst }}</h5>
+                  </div>
+                  <ul class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#"><i class="feather icon-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="javascript:">{{ opts.app_config.verbose_name }}</a></li>
+                    <li class="breadcrumb-item"><a href="javascript:">{{ opts.verbose_name_plural|capfirst }}</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+    {% endblock %}
+{% endif %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}"
+                          method="post" id="{{ opts.model_name }}_form" novalidate>
+
+                        {% csrf_token %}
+                        <div class="{{ direction.panel }}">{% block form_top %}{% endblock %}</div>
+                        <div>
+                           {% block field_sets %}
+                            <div class="row p-3">
+                                <a class="button" href="{% if request.GET.p %}{% url 'mi_admin:cfdi_bitacoracfdi_changelist' %}?p={{ request.GET.p }}{% else %}{{ request.META.HTTP_REFERER|default:'#' }}{% endif %}">
+                                    🏠 Regresar
+                                </a>
+                            </div>
+
+                            <div class="row g-4">
+                            <!-- Bitácora a la izquierda -->
+                            <div class="col-lg-6">
+                                <div class="card shadow-sm mt-4">
+                                <div class="card-header bg-light">
+                                    <i class="bi bi-clock-history me-2"></i> Bitácora CFDI – {{ original.comprobante }}
+                                </div>
+                                <div class="card-body">
+                                    <ul class="timeline list-unstyled">
+
+                                {# CREACIÓN #}
+                                {% if original.creado_por %}
+                                <li class="mb-4">
+                                    <i class="bi bi-person-plus-fill text-success me-2"></i>
+                                    <strong>Creado por:</strong> {{ original.creado_por }}<br>
+                                    <small class="text-muted">{{ original.fecha_creacion|date:"d M Y H:i" }}</small>
+                                    {% if original.ip_creacion %}
+                                    <br><span class="text-muted">IP: {{ original.ip_creacion }}</span>
+                                    {% endif %}
+
+                                    {% if original.ubicacion_creacion %}
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#mapaCreacion" aria-expanded="false" aria-controls="mapaCreacion">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> Ver ubicación
+                                    </button>
+                                    {% with original.ubicacion_creacion|cut:" " as loc %}
+                                    {% with loc|split:"," as coords %}
+                                    {% if coords|length == 2 %}
+                                    <div class="collapse mt-2" id="mapaCreacion">
+                                    <div style="height: 400px; width: 100%;">
+                                        <iframe src="https://maps.google.com/maps?q={{ coords.0 }},{{ coords.1 }}&hl=es&z=16&output=embed"
+                                                style="width:100%; height:100%; border:0;"
+                                                allowfullscreen
+                                                loading="lazy"
+                                                referrerpolicy="no-referrer-when-downgrade">
+                                        </iframe>
+                                    </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                    {% endif %}
+                                </li>
+                                {% endif %}
+
+                                {# EDICIÓN #}
+                                {% if original.editado_por %}
+                                <li class="mb-4">
+                                    <i class="bi bi-pencil-square text-primary me-2"></i>
+                                    <strong>Editado por:</strong> {{ original.editado_por }}<br>
+                                    <small class="text-muted">{{ original.fecha_edicion|date:"d M Y H:i" }}</small>
+                                    {% if original.ip_edicion %}
+                                    <br><span class="text-muted">IP: {{ original.ip_edicion }}</span>
+                                    {% endif %}
+
+                                    {% if original.ubicacion_edicion %}
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#mapaEdicion" aria-expanded="false" aria-controls="mapaEdicion">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> Ver ubicación
+                                    </button>
+                                    {% with original.ubicacion_edicion|cut:" " as loc %}
+                                    {% with loc|split:"," as coords %}
+                                    {% if coords|length == 2 %}
+                                    <div class="collapse mt-2" id="mapaEdicion">
+                                    <div style="height: 400px; width: 100%;">
+                                        <iframe src="https://maps.google.com/maps?q={{ coords.0 }},{{ coords.1 }}&hl=es&z=16&output=embed"
+                                                style="width:100%; height:100%; border:0;"
+                                                allowfullscreen
+                                                loading="lazy"
+                                                referrerpolicy="no-referrer-when-downgrade">
+                                        </iframe>
+                                    </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                    {% endif %}
+                                </li>
+                                {% endif %}
+
+                                {# TIMBRADO #}
+                                {% if original.timbrado_por %}
+                                <li class="mb-4">
+                                    <i class="bi bi-file-earmark-check-fill text-warning me-2"></i>
+                                    <strong>Timbrado por:</strong> {{ original.timbrado_por }}<br>
+                                    <small class="text-muted">{{ original.fecha_timbrado|date:"d M Y H:i" }}</small>
+                                    {% if original.ip_timbrado %}
+                                    <br><span class="text-muted">IP: {{ original.ip_timbrado }}</span>
+                                    {% endif %}
+
+                                    {% if original.ubicacion_timbrado %}
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#mapaTimbrado" aria-expanded="false" aria-controls="mapaTimbrado">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> Ver ubicación
+                                    </button>
+                                    {% with original.ubicacion_timbrado|cut:" " as loc %}
+                                    {% with loc|split:"," as coords %}
+                                    {% if coords|length == 2 %}
+                                    <div class="collapse mt-2" id="mapaTimbrado">
+                                    <div style="height: 400px; width: 100%;">
+                                        <iframe src="https://maps.google.com/maps?q={{ coords.0 }},{{ coords.1 }}&hl=es&z=16&output=embed"
+                                                style="width:100%; height:100%; border:0;"
+                                                allowfullscreen
+                                                loading="lazy"
+                                                referrerpolicy="no-referrer-when-downgrade">
+                                        </iframe>
+                                    </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                    {% endif %}
+                                </li>
+                                {% endif %}
+
+                                {# CANCELACIÓN #}
+                                {% if original.cancelado_por %}
+                                <li class="mb-4">
+                                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                                    <strong>Cancelado por:</strong> {{ original.cancelado_por }}<br>
+                                    <small class="text-muted">{{ original.fecha_cancelacion|date:"d M Y H:i" }}</small>
+                                    {% if original.ip_cancelacion %}
+                                    <br><span class="text-muted">IP: {{ original.ip_cancelacion }}</span>
+                                    {% endif %}
+
+                                    {% if original.ubicacion_cancelacion %}
+                                    <br>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#mapaCancelacion" aria-expanded="false" aria-controls="mapaCancelacion">
+                                    <i class="bi bi-geo-alt-fill me-1"></i> Ver ubicación
+                                    </button>
+                                    {% with original.ubicacion_cancelacion|cut:" " as loc %}
+                                    {% with loc|split:"," as coords %}
+                                    {% if coords|length == 2 %}
+                                    <div class="collapse mt-2" id="mapaCancelacion">
+                                    <div style="height: 400px; width: 100%;">
+                                        <iframe src="https://maps.google.com/maps?q={{ coords.0 }},{{ coords.1 }}&hl=es&z=16&output=embed"
+                                                style="width:100%; height:100%; border:0;"
+                                                allowfullscreen
+                                                loading="lazy"
+                                                referrerpolicy="no-referrer-when-downgrade">
+                                        </iframe>
+                                    </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                    {% endif %}
+                                </li>
+                                {% endif %}
+
+                                </ul>
+                                </div>
+                                </div>
+                            </div>
+
+                            <!-- PDF a la derecha -->
+                            <div class="col-lg-6">
+                                {% if pdf_url %}
+                                <div class="card shadow-sm mt-4">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-file-earmark-pdf me-2"></i> Vista en PDF del CFDI</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <iframe
+                                        src="{{ pdf_url}}"
+                                        width="100%"
+                                        height="800px"
+                                        style="border: 1px solid #ccc; border-radius: 6px;"
+                                        allowfullscreen
+                                        loading="lazy"
+                                        ></iframe>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-warning mt-4" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i> No se encontró el PDF del CFDI.
+                                </div>
+                                {% endif %}
+                            </div>
+                            </div>
+
+                            {% endblock %}
+
+
+
+
+                            {% block after_field_sets %}{% endblock %}
+
+                            {% block inline_field_sets %}
+                                {% for inline_admin_formset in inline_admin_formsets %}
+                                    {% include inline_admin_formset.opts.template %}
+                                {% endfor %}
+                            {% endblock %}
+
+                            {% block after_related_objects %}{% endblock %}
+
+
+                            {% block admin_change_form_document_ready %}
+                                <script type="text/javascript"
+                                        id="django-admin-form-add-constants"
+                                        src="{% static 'admin/js/change_form.js' %}"
+                                        {% if adminform and add %}
+                                        data-model-name="{{ opts.model_name }}"
+                                        {% endif %}>
+                                </script>
+                            {% endblock %}
+
+                            {% prepopulated_fields_js %}
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends "console/layout.html" %}
+
+
+{% load breadcrumbs %}
+{% block breadcrumbs %}
+    {% breadcrumb_url "Inicio" "inicio" %}
+    {% breadcrumb_url "Servicios activados"   %}
+   
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">Catálogo de Servicios y Planes Contratados</h1>
+
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for servicio in servicios %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>{{ servicio.user_service.idService.nombre }}</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ servicio.user_service.idService.descripcion }}</p>
+                            <p class="card-text">URL: 
+                                {% if servicio.url_servicio %}
+                                    <a href="{{ servicio.url_servicio }}" target="_blank">{{ servicio.url_servicio }}</a>
+                                {% else %}
+                                    <span>(URL no disponible)</span>
+                                {% endif %}
+                            </p>
+                            <!-- Botones para interactuar con los planes -->
+                            {% if servicio.user_service.idPlan %}
+                                <p>Plan Seleccionado: {{ servicio.user_service.idPlan.nombre }}</p>
+                                <button type="button" class="btn btn-danger" onclick="showDeletePlanModal('{{ servicio.user_service.idService.id }}')">
+                                    Eliminar Plan
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-primary" onclick="showPlanModal('{{ servicio.user_service.idService.id }}')">
+                                    Seleccionar Plan
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Plan Modal -->
+                <div class="modal fade" id="planModal{{ servicio.user_service.idService.id }}" tabindex="-1" aria-labelledby="planModalLabel{{ servicio.user_service.idService.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="planModalLabel{{ servicio.user_service.idService.id }}">Planes Disponibles</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    {% for plan in planes %}
+                                    <div class="col-md-4 mb-4">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ plan.nombre }}</h5>
+                                                <p class="card-text">{{ plan.descripcion }}</p>
+                                                <p class="card-text">Precio: {{ plan.precio }}</p>
+                                                <button type="button" class="btn btn-primary" onclick="selectPlan('{{ servicio.user_service.idService.id }}', '{{ plan.id }}', '{{ plan.nombre }}', '{{ servicio.url_servicio }}')">
+                                                    Seleccionar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Modal de Confirmación para Eliminar Plan -->
+                <div class="modal fade" id="confirmDeleteModal{{ servicio.user_service.idService.id }}" tabindex="-1" aria-labelledby="confirmDeleteModalLabel{{ servicio.user_service.idService.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="confirmDeleteModalLabel{{ servicio.user_service.idService.id }}">Confirmación de Eliminación</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>¿Estás seguro de eliminar el plan seleccionado? Ten en cuenta que se borrarán todos los datos relacionados.</p>
+                                <div class="mb-3">
+                                    <label for="password{{ servicio.user_service.idService.id }}" class="form-label">Ingresa tu contraseña para confirmar:</label>
+                                    <input type="password" class="form-control" id="password{{ servicio.user_service.idService.id }}" placeholder="Contraseña">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-danger" onclick="eliminarPlan('{{ servicio.user_service.idService.id }}')">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Seleccionar Plan -->
+<div class="modal fade" id="confirmSelectPlanModal" tabindex="-1" aria-labelledby="confirmSelectPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmSelectPlanModalLabel">Confirmación de Selección de Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de elegir el plan seleccionado?</p>
+                <p id="selectedPlanInfo"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="acceptPlanSelection()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+        // Iterar sobre todos los servicios para verificar y restaurar la URL activa desde localStorage
+        $('[id^="serviceUrl"]').each(function() {
+            var serviceId = $(this).attr('id').replace('serviceUrl', '');
+            var serviceKey = 'selectedServiceUrl_' + serviceId;
+            var storedUrl = localStorage.getItem(serviceKey);
+            if (storedUrl) {
+                $(this).html('<a href="' + storedUrl + '" id="selectedServiceLink' + serviceId + '">' + storedUrl + ' (Activado)</a>');
+            }
+        });
+    });
+
+    var selectedServiceId = '';
+    var selectedPlanId = '';
+    var selectedServiceUrl = '';
+
+    function showPlanModal(serviceId) {
+        selectedServiceId = serviceId;
+        $('#planModal' + serviceId).modal('show');
+    }
+
+    function showDeletePlanModal(serviceId) {
+        $('#confirmDeleteModal' + serviceId).modal('show');
+    }
+
+    function selectPlan(serviceId, planId, planName, serviceUrl) {
+        selectedServiceId = serviceId;
+        selectedPlanId = planId;
+        selectedServiceUrl = serviceUrl;
+        $('#planModal' + serviceId).modal('hide');
+        $('#selectedPlanInfo').text(planName);
+        $('#confirmSelectPlanModal').modal('show');
+    }
+
+    function acceptPlanSelection() {
+        if (selectedServiceId && selectedPlanId) {
+            var formData = $('#form' + selectedServiceId).serialize();
+            formData += '&plan_id=' + selectedPlanId;
+            $.ajax({
+                url: '{% url "seleccion_servicio" %}',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    console.log('Plan seleccionado correctamente');
+                    // Guardar la URL del servicio seleccionado en localStorage
+                    var serviceKey = 'selectedServiceUrl_' + selectedServiceId;
+                    localStorage.setItem(serviceKey, selectedServiceUrl);
+
+                    // Actualizar la URL visible del servicio seleccionado con "(Activado)"
+                    var serviceUrlElement = $('#serviceUrl' + selectedServiceId);
+                    serviceUrlElement.html('<a href="' + selectedServiceUrl + '" id="selectedServiceLink' + selectedServiceId + '">' + selectedServiceUrl + ' (Activado)</a>');
+                    $('#confirmSelectPlanModal').modal('hide');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error al seleccionar el plan:', error);
+                    // Manejar errores si es necesario
+                }
+            });
+        }
+    }
+
+    function eliminarPlan(serviceId) {
+        var password = $('#password' + serviceId).val();  // Obtener la contraseña ingresada
+        if (!password) {
+            alert("Por favor ingresa tu contraseña para confirmar.");
+            return;
+        }
+    
+        $.ajax({
+            url: '{% url "eliminar_servicio" %}',
+            type: 'POST',
+            data: {
+                'service_id': serviceId,
+                'password': password,  // Enviar la contraseña
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('Plan eliminado correctamente');
+                // Limpiar la URL visible del servicio eliminado
+                var serviceKey = 'selectedServiceUrl_' + serviceId;
+                localStorage.removeItem(serviceKey);
+    
+                var serviceUrlElement = $('#serviceUrl' + serviceId);
+                serviceUrlElement.empty();
+                $('#confirmDeleteModal' + serviceId).modal('hide');
+    
+                // Recargar la página
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al eliminar el plan:', error);
+                alert('Error al eliminar el plan: ' + error);
+            }
+        });
+}
+    
+
+
+</script>
+
+{% endblock %}

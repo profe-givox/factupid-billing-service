@@ -1,0 +1,64 @@
+{% extends 'clientes/lista.html' %}
+
+{% block content %}
+<div class="card card-default">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-user"></i>
+            Perfil Fiscal
+        </h3>
+    </div>
+
+    <div class="card-body">
+        {% if perfil_fiscal %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>RFC</th>
+                    <th>Estado de Firma</th>
+                    {% if perfil_fiscal.estado_firma == 'true' %}
+                    <th>Descargar Contrato PDF</th>
+                    <th>Descargar Contrato XML</th>
+                    {% endif %}
+                    {% if perfil_fiscal.estado_firma == 'false' %}
+                    <th>URL Sign Manifest</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ perfil_fiscal.nombre }}</td>
+                    <td>{{ perfil_fiscal.rfc }}</td>
+                    <td>
+                        {% if perfil_fiscal.estado_firma == 'true' %}
+                        <i class="fas fa-check-circle" style="color: green;"></i>
+                        {% else %}
+                        <i class="fas fa-times-circle" style="color: red;"></i>
+                        {% endif %}
+                    </td>
+                    {% if perfil_fiscal.estado_firma == 'true' %}
+                    <td>
+                        <a href="{% url 'invoice:descargar_contrato_pdfPerfil' contrato_id=perfil_fiscal.id %}" class="btn btn-primary">
+                            Descargar PDF
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{% url 'invoice:descargar_contrato_xmlPerfil' contrato_id=perfil_fiscal.id %}" class="btn btn-primary">
+                            Descargar XML
+                        </a>
+                    </td>
+                    {% endif %}
+                    {% if perfil_fiscal.estado_firma == 'false' %}
+                    <td><a href="{{ url_sign_manifest }}" target="_blank">Ver URL</a></td>
+                    {% endif %}
+                </tr>
+            </tbody>
+        </table>
+        {% else %}
+        <p>No se ha encontrado información fiscal para este usuario.</p>
+        {% endif %}
+    </div> 
+</div>
+
+{% endblock %}

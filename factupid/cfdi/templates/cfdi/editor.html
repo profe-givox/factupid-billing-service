@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de pantillas CFDI</title>
+
+    <!-- LIBRERIAS DE BOOTSTRAP-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{% static 'librerias/bootstrap/bootstrap.min.css' %}" />
+    <script src="{% static 'librerias/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    <!--LIBRERIAS DE GRAPESJS-->    
+    <link rel="stylesheet" href="{% static 'librerias/grapesjs/grapes.min.css' %}" />
+    <script src="{% static 'librerias/grapesjs/grapes.min.js' %}"></script> 
+    
+    <!-- estilos personalizados -->
+    <link rel="stylesheet" href="{% static 'librerias/styles.css' %}">
+</head>
+<body>  
+  <div class="container-father">
+    <div class="editor-row"> 
+        <div class="accordion" id="element">
+          <div class="styles-container accordion-item">
+            <h4 class="accordion-header">
+              <button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#styles-collapse" >
+                <i class="bi bi-palette me-2"></i>Estilos
+              </button>
+            </h4>
+            <div id="styles-collapse" class="collapse scrollable-content">              
+            </div>
+          </div>
+          <div id="blocks" class="accordion-item">
+            <h4 class="accordion-header">
+              <button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#blocks-collapse" >
+              <i class="bi bi-grid me-2"></i> Elementos
+              </button>
+            </h4>
+            <div id="blocks-collapse" class="collapse show scrollable-content">               
+            </div>
+          </div>
+        </div>
+        <div class="editor-canvas">
+          <div class="encabezado">
+                <h4 class="text-white" style="margin: 5px 10px 0px 10px;"> Tipo de CFDI:</h4>
+                <select id="modeloSelect" class="form-select" aria-label="Tipo de CFDI" style="margin: 5px 10px 5px 10px; width: 50%;" onchange="handleModeloSelect()">
+                  <option value="0" selected>Seleccione una plantilla</option>
+                </select>
+                <div class="d-flex justify-content-between">
+                  <form method="POST" onsubmit="savePlantilla(event)">
+                      {% csrf_token %}
+                      <button id="save" class="btn btn btn-primary align-items-end" type="submit" name="action" value="save" title="Guardar"><i class="bi bi-save"></i></button>
+                      <button id="saveas" class="btn btn-info" type="submit" name="action" value="saveas" title="Guardar cómo"><i class="bi bi-save-fill"></i></button>
+                      <button id="delete" class="btn btn-danger" type="submit" name="action" value="delete" title="Eliminar contenido"><i class="bi bi-trash"></i></button>
+                      <button id="erase" class="btn btn-dark text-white fw-bold" type="submit" name="action" value="erase" title="Eliminar Plantilla"><i class="bi bi-trash-fill"></i></button>
+                  </form>
+              </div>
+            </div>
+            <div class="contenedor ">
+              <!-- contenedor de alertas -->
+              <div id="alertContainer"></div>
+              <div id="gjs">                
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+
+<!-- Modal para crear un nuevo modelo -->
+<div class="modal fade" id="NuevaPlantilla" tabindex="-1" aria-labelledby="nuevoModeloLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nuevoModeloLabel">Crear nuevo CFDI</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <label for="nuevoModeloNombre" class="form-label">Nombre del nuevo CFDI:</label>
+        <input type="text" class="form-control" id="nuevoCFDI" placeholder="Nombre del CFDI">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="GuardarPlantilla()">Crear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Guardar un modelo en otro CFDI nuevo-->
+<div class="modal fade" id="GuardarComo" tabindex="-1" aria-labelledby="nuevoModeloLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nuevoModeloLabel">Guardar como</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <label for="nuevoModeloNombre" class="form-label">Nombre del nuevo CFDI:</label>
+        <input type="text" class="form-control" id="guardarCFDI" placeholder="Ingrese el nombre del CFDI">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="GuardarPlantillaComo(event)">Guardar como</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script src="{% static 'librerias/editor.js' %}"></script>
+  <script>
+    var pageId = {% if page and page.id %} {{ page.id }} {% else %} null {% endif %};
+
+  </script>
+</body>
+</html>

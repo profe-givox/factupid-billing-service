@@ -1,0 +1,50 @@
+{% extends "LadoClientes/layouts/base-auth.html" %}
+{% load i18n static admin_material %}
+
+{% block body %} bg-gray-200 {% endblock body %}
+
+{% block content %}
+<main class="main-content mt-0">
+  <div class="container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="col-md-6 col-lg-5 bg-white p-4 rounded shadow text-center">
+        <div class="card-body">
+            <h3 class="card-title text-center">Tu reseteo de contraseña fue cancelada </h3>
+            <div class="card-text text-center">
+                Por favor intentalo mas tarde o solicita un link de reseteo nuevo
+                
+    
+               
+            </div>
+    
+            <div class="card-text text-center" style="font-size: 2em;">
+                ⚠️
+    
+               
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <footer class="footer position-absolute bottom-2 py-2 w-100">
+    <div class="container text-center text-white">
+      <div class="copyright text-sm">
+        &copy; Factupid <a href="https://app-generator.dev" class="font-weight-bold text-white">por TECHFIDG Solutions</a>.
+      </div>
+    </div>
+  </footer>
+</main>
+
+
+
+{% endblock content %}
+
+{% block extra_js %}
+<script type="application/javascript">
+  {% if form.username.errors %}
+    notification.danger("{{ form.username.errors }}", 'top', 'right');
+  {% endif %}
+  {% if form.password.errors %}
+    notification.danger("{{ form.password.errors }}", 'top', 'right');
+  {% endif %}
+</script>
+{% endblock extra_js %}

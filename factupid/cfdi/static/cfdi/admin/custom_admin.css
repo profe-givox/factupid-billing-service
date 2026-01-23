@@ -1,0 +1,26 @@
+#btn-acciones{
+    background-color: rgb(1, 170, 58);
+    color: aliceblue;
+    height: 37px;
+    border-radius: 7px;
+}
+
+
+#PPD{
+    background-color: #38a9d5;
+    font-style: normal;
+    font-size: 13;
+    color: white;
+    font-weight: bold;
+    font-family: Arial;
+}
+
+
+#PUE{
+    background-color: #008d00;
+    font-style: normal;
+    font-size: 13;
+    color: white;
+    font-weight: bold;
+    font-family: Arial;
+}

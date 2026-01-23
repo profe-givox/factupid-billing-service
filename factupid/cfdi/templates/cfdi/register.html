@@ -1,0 +1,89 @@
+{% extends "LadoClientes/layouts/base-auth.html" %}
+{% load i18n static admin_material %}
+
+{% block body %} bg-gray-200 {% endblock body %}
+
+{% block content %}
+
+<main class="main-content mt-0">
+
+  <!-- Sección con fondo y máscara -->
+  <div class="page-header align-items-start min-vh-100" style="background-image: url('{% static "fondo-pagina/fondo-cfdi.png" %}');">
+    <span class="mask bg-gradient-dark opacity-6 position-absolute w-100 h-100" style="top: 0; left: 0; z-index: 1;"></span>
+
+    <!-- Contenido encima de la máscara -->
+    <div class="container d-flex align-items-center justify-content-center min-vh-100 position-relative" style="z-index: 2;">
+      <div class="col-md-6 col-lg-5 bg-white p-4 rounded shadow text-center">
+        <h2 class="mb-4">Registro</h2>
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="form-group mb-3 text-start">
+            <label for="id_email" class="form-label">Correo electrónico:</label>
+            <br>
+            {{ form.email }}
+            {% if form.email.errors %}
+              <small class="text-danger">{{ form.email.errors }}</small>
+            {% endif %}
+          </div>
+
+          <div class="form-group mb-3 text-start">
+            <label for="id_password1" class="form-label">Contraseña:</label>
+            <br>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+              <small class="text-danger">{{ form.password1.errors }}</small>
+            {% endif %}
+          </div>
+
+          <div class="form-group mb-4 text-start">
+            <label for="id_password2" class="form-label">Confirmar contraseña:</label>
+            <br>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+              <small class="text-danger">{{ form.password2.errors }}</small>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">Registrarse</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer position-absolute bottom-2 py-2 w-100">
+      <div class="container text-center text-white">
+        <div class="copyright text-sm text-white">
+          &copy; Factupid <a href="https://app-generator.dev" class="font-weight-bold text-white">por TECHFIDG Solutions</a>.
+        </div>
+      </div>
+    </footer>
+  </div>
+
+</main>
+
+<style>
+  input#id_email,
+  input#id_password1,
+  input#id_password2 {
+    width: 100%;
+  }
+
+
+  button.btn.btn-primary.w-100 {
+    background-color: #367ad4;
+  }
+</style>
+
+{% endblock content %}
+
+{% block extra_js %}
+<script type="application/javascript">
+  {% if form.username.errors %}
+    notification.danger("{{ form.username.errors }}", 'top', 'right');
+  {% endif %}
+  {% if form.password.errors %}
+    notification.danger("{{ form.password.errors }}", 'top', 'right');
+  {% endif %}
+</script>
+{% endblock extra_js %}

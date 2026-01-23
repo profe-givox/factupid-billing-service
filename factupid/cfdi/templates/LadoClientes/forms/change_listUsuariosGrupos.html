@@ -1,0 +1,173 @@
+{% extends "LadoClientes/pages/base.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% if messages %}
+        <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            {% for message in messages %}
+            {% if "success" in message.tags and "timbrado" in message|lower %}
+                Swal.fire({
+                  icon: 'success',
+                  title: '¡Timbrado exitoso!',
+                  html: `{{ message|linebreaksbr|escapejs }}`
+                });
+            {% endif %}
+            {% endfor %}
+        });
+        </script>
+    {% endif %}
+    <link rel="stylesheet" type="text/css" href="{% static "admin/css/changelists.css" %}">
+    {% if cl.formset %}
+        <link rel="stylesheet" type="text/css" href="{% static "assets/css/forms.css" %}">
+    {% endif %}
+    {% if cl.formset or action_form %}
+        <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+    {% endif %}
+    {{ media.css }}
+    {% if not actions_on_top and not actions_on_bottom %}
+        <style>
+            #changelist table thead th:first-child { width: inherit }
+        </style>
+    {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media.js }}
+{% endblock %}
+
+{% if not is_popup %}
+    {% block breadcrumbs %}
+        <div class="page-header">
+            <div class="page-block">
+              <div class="row align-items-center">
+                <div class="col-md-12">
+                  <div class="page-header-title">
+                    <h5 class="m-b-10">{{ cl.opts.verbose_name_plural|capfirst }}</h5>
+                  </div>
+                  <ul class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#"><i class="feather icon-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="javascript:">{{ cl.opts.app_config.verbose_name }}</a></li>
+                    <li class="breadcrumb-item"><a href="javascript:">{{ cl.opts.verbose_name_plural|capfirst }}</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+    {% endblock %}
+{% endif %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="table-settings my-3">
+        <div class="row align-items-center justify-content-between">
+            <div class="col col-md-8 col-lg-3 col-xl-8">
+                {% block search %}{% search_form cl %}{% endblock %}
+            </div>
+            <div class="d-block mb-4 mb-md-0 col-4 col-md-2">
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group">
+                        {% block object-tools-items %}
+                            {% change_list_object_tools %}
+                        {% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="{% if cl.has_filters %}col-md-10{% else %}col-md-12{% endif %}">
+            {% block date_hierarchy %}
+                {% if cl.date_hierarchy %}{% date_hierarchy cl %}{% endif %}
+            {% endblock %}
+
+            <form id="changelist-form" method="post" {% if cl.formset and cl.formset.is_multipart %}enctype="multipart/form-data"{% endif %} novalidate>
+                {% csrf_token %}
+
+                {% if cl.formset %}
+                  <div>{{ cl.formset.management_form }}</div>
+                {% endif %}
+
+                <div class="card card-body border-0 shadow table-wrapper table-responsive">
+                    {% block result_list %}
+                        {% if action_form and actions_on_top and cl.show_admin_actions %}
+                            {% admin_actions %}
+                        {% endif %}
+
+                        <table id="result_list" class="table table-striped table-hover">
+                          <thead>
+                            <tr>
+                              <th class="action-checkbox-column">
+                                {% if cl.show_admin_actions %}
+                                  <input type="checkbox" id="action-toggle">
+                                {% endif %}
+                              </th>
+                              <th scope="col">{% trans "Nombre" %}</th>
+                              <th scope="col">{% trans "Creado por" %}</th>
+                              <th scope="col">{% trans "Creado el" %}</th>
+                              <th scope="col">{% trans "Actualizado por" %}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for obj in cl.result_list %}
+                              <tr class="{% cycle 'row1' 'row2' %}">
+                                <td class="action-checkbox">
+                                  {% if cl.show_admin_actions %}
+                                    <input type="checkbox" name="_selected_action" value="{{ obj.pk }}" class="action-select">
+                                  {% endif %}
+                                </td>
+                                <td class="field-name">
+                                  <span class="text-muted">
+                                    {{ obj.group.name|default:"—" }}
+                                  </span>
+                                </td>
+                                <td class="field-created_by">
+                                  {{ obj.created_by|default:"—" }}
+                                </td>
+                                <td class="field-created_at">
+                                  {{ obj.created_at|date:"Y-m-d H:i" }}
+                                </td>
+                                <td class="field-updated_by">
+                                  {{ obj.updated_by|default:"—" }}
+                                </td>
+                              </tr>
+                            {% empty %}
+                              <tr><td colspan="4">{% trans "No entries found." %}</td></tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+
+                        {% if action_form and actions_on_bottom and cl.show_admin_actions %}
+                            {% admin_actions %}
+                        {% endif %}
+                    {% endblock %}
+
+                    {% block pagination %}{% pagination cl %}{% endblock %}
+                </div>
+            </form>
+        </div>
+
+        <div class="col-md-2">
+            {% if cl.has_filters %}
+                {% block filters %}
+                    <div class="card card-body border-0 shadow table-wrapper table-responsive">
+                        <div class="card-header filter_card_header">
+                            <h5>{% trans 'Filter' %}</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for spec in cl.filter_specs %}
+                                {% admin_list_filter cl spec %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endblock %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,240 @@
+.wizard-steps,
+.wizard-steps-extensive {
+    margin: 0 0 25px;
+    padding: 0;
+    list-style-type: none
+}
+
+.wizard-steps li,
+.wizard-steps-extensive li {
+    display: block;
+    background-color: #eee;
+    position: relative;
+    padding: 10px;
+    margin-bottom: 2px;
+    text-align: center
+}
+
+.wizard-steps li h5,
+.wizard-steps-extensive li h5 {
+    margin: 0
+}
+
+.wizard-steps li.completed,
+.wizard-steps li.current,
+.wizard-steps-extensive li.completed,
+.wizard-steps-extensive li.current {
+    background-color: #611232;
+    color: #fff
+}
+
+.wizard-steps li:last-child.success,
+.wizard-steps-extensive li:last-child.success {
+    background-color: #9FD16C
+}
+
+.wizard-steps li:last-child.success i,
+.wizard-steps-extensive li:last-child.success i {
+    visibility: visible;
+    color: #fff
+}
+
+@media (min-width:768px) {
+    .wizard-steps li h5,
+    .wizard-steps li i,
+    .wizard-steps li span {
+        position: relative;
+        z-index: 20
+    }
+    .wizard-steps li {
+        font-size: 14px;
+        padding: 0 10px 0 40px;
+        display: inline-block;
+        height: 70px;
+        color: #000;
+        margin-bottom: 0;
+        text-align: left
+    }
+    .wizard-steps li h5 {
+        margin: 14px 0 0
+    }
+    .wizard-steps li i {
+        padding-top: 18px;
+        font-size: 35px;
+        color: #fff;
+        display: block;
+        margin: auto;
+        text-align: center
+    }
+    .wizard-steps li:first-child {
+        border-top-left-radius: 5px;
+        border-bottom-left-radius: 5px;
+        z-index: 5
+    }
+    .wizard-steps li:last-child {
+        top: 0px;
+        width: 94px;
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px
+    }
+    .wizard-steps li:last-child:after,
+    .wizard-steps li:last-child:before {
+        display: none
+    }
+    .wizard-steps li:after,
+    .wizard-steps li:before {
+        content: "";
+        position: absolute;
+        background-color: #ececec
+    }
+    .wizard-steps li:after {
+        position: absolute;
+        right: -29px;
+        top: 9px;
+        border-radius: 3px;
+        border-right: 3px solid #fff;
+        border-top: 3px solid #fff;
+        height: 52px;
+        width: 52px;
+        -webkit-transform: rotate(45deg);
+        -ms-transform: rotate(45deg);
+        transform: rotate(45deg)
+    }
+    .wizard-steps li:nth-child(2) {
+        z-index: 4
+    }
+    .wizard-steps li:nth-child(3) {
+        z-index: 3
+    }
+    .wizard-steps li:nth-child(4) {
+        z-index: 2
+    }
+    .wizard-steps li.completed,
+    .wizard-steps li.current,
+    .wizard-steps li.success {
+        background-color: #611232;
+        color: #fff;
+        height: 80px;
+        top: 0
+    }
+    .wizard-steps li.completed h5,
+    .wizard-steps li.current h5,
+    .wizard-steps li.success h5 {
+        margin-top: 20px
+    }
+    .wizard-steps li.completed i,
+    .wizard-steps li.current i,
+    .wizard-steps li.success i {
+    top: 6px
+    }
+.wizard-steps li.completed:after,
+.wizard-steps li.completed:before,
+.wizard-steps li.current:after,
+.wizard-steps li.current:before,
+.wizard-steps li.success:after,
+.wizard-steps li.success:before {
+    background-color: #611232
+}
+.wizard-steps li.completed:after,
+.wizard-steps li.current:after,
+.wizard-steps li.success:after {
+    height: 60px;
+    width: 60px;
+    top: 10px;
+    right: -33px
+}
+.wizard-steps-extensive {
+    background-color: #eee;
+    padding: 25px 50px;
+    border-radius: 5px
+}
+.wizard-steps-extensive li {
+    display: inline-block;
+    position: relative;
+    width: 27px;
+    height: 27px;
+    margin-left: 30px;
+    padding: 0;
+    border: 2px solid #611232;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 25px;
+    color: transparent
+}
+.wizard-steps-extensive li:after {
+    content: '';
+    width: 25px;
+    height: 2px;
+    background-color: #ccc;
+    position: absolute;
+    top: 12px;
+    right: 30px
+}
+.wizard-steps-extensive li:first-child {
+    margin-left: 0
+}
+.wizard-steps-extensive li:first-child:after {
+    display: none
+}
+.wizard-steps-extensive li:hover span {
+    display: block
+}
+.wizard-steps-extensive li.completed {
+    background-color: #611232;
+    color: #fff
+}
+.wizard-steps-extensive li.completed:after {
+    background-color: #611232
+}
+.wizard-steps-extensive li h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 25px
+}
+.wizard-steps-extensive li span {
+    display: none;
+    position: absolute;
+    top: 180%;
+    left: -23px;
+    background-color: #545454;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-size: 16px;
+    color: #eee;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    z-index: 5
+}
+.wizard-steps-extensive li span:before {
+    content: '';
+    border: 10px solid transparent;
+    border-bottom-color: #545454;
+    position: absolute;
+    bottom: 100%;
+    left: 25px
+}
+}
+
+@media (min-width:992px) {
+    .attention .step .row .col-md-4 {
+        margin-top: 0
+    }
+    .wizard-steps li {
+        /* font-size: 16px; */
+        padding: 0 20px 0 50px
+    }
+    .wizard-steps li:last-child {
+        width: 144px;
+        top: 0
+    }
+}
+
+@media (min-width:1200px) {
+    .wizard-steps li {
+        padding: 0 30px 0 50px
+    }
+    .wizard-steps li:last-child {
+        width: 304px
+    }
+}
