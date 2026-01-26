@@ -139,7 +139,7 @@
 <li>Tablero claro para tu equipo contable y de negocio.</li>
 <li>Integraciones listas con tus sistemas y servicios web.</li>
 </ul>
-<section class="services-plans" data-api-base="http://127.0.0.1:8080">
+<section class="services-plans" data-checkout-start="http://127.0.0.1:8000/checkout/start">
   <h2>Tenemos el paquete que se adapta a tu necesidad</h2>
   <p>Consulta los planes disponibles por servicio y tipo de integracion.</p>
   <div class="plans-grid">
@@ -209,13 +209,13 @@
     </div>
   </div>
 </section>
-<script>
+  <script>
   (function () {
     var section = document.querySelector(".services-plans");
     if (!section) return;
 
-    var apiBase = section.getAttribute("data-api-base") || "http://127.0.0.1:8080";
-    apiBase = apiBase.replace(/\/$/, "");
+    // URL base del endpoint Django que inicia el checkout
+    var checkoutStart = section.getAttribute("data-checkout-start") || "http://127.0.0.1:8000/checkout/start";
 
     var buttons = section.querySelectorAll(".plan-action[data-plan-code]");
     buttons.forEach(function (button) {
@@ -223,44 +223,27 @@
         event.preventDefault();
 
         var planCode = button.getAttribute("data-plan-code");
-        var userId = Number(button.getAttribute("data-user-id") || 0);
         if (!planCode) return;
 
         var originalText = button.textContent;
         button.textContent = "Procesando...";
         button.setAttribute("aria-busy", "true");
 
-        fetch(apiBase + "/payments/init", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            plan_code: planCode,
-          }),
-        })
-          .then(function (response) {
-            if (!response.ok) {
-              throw new Error("No se pudo iniciar el pago");
-            }
-            return response.json();
-          })
-          .then(function (data) {
-            if (!data.checkout_url) {
-              throw new Error("Checkout URL no disponible");
-            }
-            window.location.href = data.checkout_url;
-          })
-          .catch(function (error) {
-            console.error(error);
-            alert("No se pudo iniciar el pago. Intenta de nuevo.");
-          })
-          .finally(function () {
-            button.textContent = originalText;
-            button.removeAttribute("aria-busy");
-          });
+        // Construye la URL con el plan
+        var url = new URL(checkoutStart, window.location.origin);
+        url.searchParams.set("plan", planCode);
+
+        // Solicita correo para asociar el pago al usuario invitado
+        var email = window.prompt("Ingresa tu correo para recibir el acceso:", "");
+        if (email && email.trim()) {
+          url.searchParams.set("email", email.trim());
+        }
+
+        // Redirige a Django para crear la sesión de Stripe
+        window.location.href = url.toString();
+
+        button.textContent = originalText;
+        button.removeAttribute("aria-busy");
       });
     });
   })();

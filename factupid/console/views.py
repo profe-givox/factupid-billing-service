@@ -70,6 +70,8 @@ import os
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
+import requests
+from urllib.parse import urlencode
 
 
 
@@ -388,6 +390,97 @@ def reseteoEnviado(request):
             'year': datetime.datetime.now().year,
         }
     )
+
+
+def checkout_start(request):
+    # Inicia checkout: valida plan, resuelve usuario (login o registro) y redirige a Stripe.
+    plan_code = request.GET.get("plan") if request.method == "GET" else request.POST.get("plan")
+    if not plan_code:
+        return HttpResponse("Falta el plan.", status=400)
+
+    email = (request.GET.get("email") if request.method == "GET" else request.POST.get("email") or "").strip()
+
+    if request.user.is_authenticated:
+        # Usuario autenticado: usar su cuenta para asociar el pago.
+        user = request.user
+    else:
+        if request.method == "POST":
+            # Registro rápido (solo si el usuario no existe).
+            password = request.POST.get("password") or ""
+            password2 = request.POST.get("password2") or ""
+
+            if not email:
+                return HttpResponse("Falta el correo.", status=400)
+            if not password or not password2:
+                return HttpResponse("Faltan contraseñas.", status=400)
+            if password != password2:
+                return HttpResponse("Las contraseñas no coinciden.", status=400)
+
+            user = User.objects.filter(email=email).first()
+            if not user:
+                user = User(username=email, email=email, is_active=False)
+                user.set_password(password)
+                user.save()
+                try:
+                    # Envío de activación best-effort (no bloquea el pago).
+                    send_activation_email(request, user)
+                except Exception:
+                    pass
+        else:
+            if not email:
+                return HttpResponse("Falta el correo.", status=400)
+
+            user = User.objects.filter(email=email).first()
+            if user:
+                # Si existe, redirige a login para que inicie sesión.
+                login_url = reverse("iniciarsesion")
+                next_url = f"/checkout/start/?{urlencode({'plan': plan_code, 'email': email})}"
+                return redirect(f"{login_url}?{urlencode({'next': next_url})}")
+
+            # Si no existe, pedir contraseña y confirmación.
+            return render(
+                request,
+                "console/checkout_register.html",
+                {"plan": plan_code, "email": email},
+            )
+
+    # URL del servicio de cobranza (API FastAPI).
+    api_base = getattr(settings, "COBRANZA_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+
+    try:
+        # Llamada server-to-server para crear la sesión de Stripe.
+        response = requests.post(
+            f"{api_base}/payments/init",
+            json={"user_id": user.id, "plan_code": plan_code},
+            timeout=15,
+        )
+    except Exception:
+        return HttpResponse("No se pudo conectar con el servicio de cobro.", status=502)
+
+    if response.status_code >= 400:
+        return HttpResponse("No se pudo iniciar el pago.", status=502)
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return HttpResponse("Respuesta inválida del servicio de cobro.", status=502)
+
+    checkout_url = payload.get("checkout_url")
+    if not checkout_url:
+        return HttpResponse("Checkout URL no disponible.", status=502)
+
+    # Redirección final al Checkout de Stripe.
+    return redirect(checkout_url)
+
+
+def checkout_success(request):
+    # Placeholder simple para éxito (puede reemplazarse por template).
+    return HttpResponse("Pago completado. Revisa tu correo para activar tu acceso.")
+
+
+def checkout_cancel(request):
+    # Placeholder simple para cancelación (puede reemplazarse por template).
+    return HttpResponse("Pago cancelado. Si necesitas ayuda, contáctanos.")
 
 
 

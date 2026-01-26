@@ -10,6 +10,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from app import forms, views
 from cfdi.Ladoclientes import mi_admin_site
 from cfdi import views as cfdi_views
+from console import views as console_views
 
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
@@ -22,6 +23,11 @@ urlpatterns = [
     path('mi-admin/', mi_admin_site.urls),
     path('console/', include('console.urls')),
     path('cfdi/', include('cfdi.urls')),
+    # Checkout público para invitados y usuarios logueados
+    path('checkout/start/', console_views.checkout_start, name='checkout_start'),
+    # URLs de retorno de Stripe
+    path('checkout/success/', console_views.checkout_success, name='checkout_success'),
+    path('checkout/cancel/', console_views.checkout_cancel, name='checkout_cancel'),
     path('', cfdi_views.home, name='home'),
     path('contact/', views.contact, name='contact'),
     path('about/', views.about, name='about'),
