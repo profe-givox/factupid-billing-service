@@ -87,6 +87,12 @@ def create_subscription_checkout_session(
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
         },
+        subscription_data={  #
+            "metadata": {
+                "subscription_id": str(subscription_id),
+                "user_id": str(user_id),
+            }
+        },
         success_url=settings.STRIPE_SUCCESS_URL,
         cancel_url=settings.STRIPE_CANCEL_URL,
     )

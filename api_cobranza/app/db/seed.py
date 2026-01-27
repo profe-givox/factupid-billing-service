@@ -16,6 +16,15 @@ def seed_plans():
             "stripe_price_id": None,
         },
         {
+            "code": "pro_mensual",
+            "name": "Plan Pro Mensual",
+            "price": 299,
+            "currency": "MXN",
+            "interval": None,
+            "billing_type": "one_time",
+            "stripe_price_id": None,
+        },
+        {
             "code": "PRO",
             "name": "Plan Pro Mensual",
             "price": 50,

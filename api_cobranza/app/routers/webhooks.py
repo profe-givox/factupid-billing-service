@@ -35,9 +35,14 @@ async def stripe_webhook(
     # Evento principal
     if event["type"] == "checkout.session.completed":
         handle_checkout_completed(event["data"]["object"])
-        
+
+    #Pago único
     if event["type"] == "payment_intent.succeeded":
-        handle_payment_succeeded(event["data"]["object"], event)
+        handle_one_time_payment(event["data"]["object"], event)
+
+    elif event["type"] == "invoice.payment_succeeded":
+        handle_subscription_payment(event["data"]["object"], event)
+
     elif event["type"] == "customer.subscription.deleted":
         handle_subscription_deleted(event["data"]["object"])
 
@@ -46,39 +51,36 @@ async def stripe_webhook(
 
 
 def handle_checkout_completed(session_data: dict):
-    """
-    Activa la suscripcion cuando Stripe confirma el pago.
-    """
-    from app.db.session import engine  # import local para evitar ciclos
+    from app.db.session import engine
+    from app.models.subscription import Subscription
+    from app.models.payment import Payment
+    from sqlmodel import Session, select
+    from datetime import datetime
 
-    subscription_id = session_data["metadata"].get("subscription_id")
-
-    if not subscription_id:
-        return
+    subscription_id = session_data["metadata"]["subscription_id"]
+    checkout_session_id = session_data["id"]  # 🔑 ESTE ES EL BUENO
+    stripe_subscription_id = session_data.get("subscription")
 
     with Session(engine) as db:
-        statement = select(Subscription).where(
-            Subscription.id == int(subscription_id)
-        )
-        subscription = db.exec(statement).first()
-
+        subscription = db.get(Subscription, int(subscription_id))
         if not subscription:
             return
 
-        subscription.stripe_subscription_id = session_data["subscription"]
+        # Activar suscripción
         subscription.status = "active"
-        subscription.start_date = subscription.start_date or subscription.created_at.date()
-
-        # ejemplo simple: mensual
+        subscription.stripe_subscription_id = stripe_subscription_id
+        subscription.start_date = subscription.created_at.date()
         subscription.end_date = subscription.start_date.replace(
-            year=subscription.start_date.year + (1 if subscription.start_date.month == 12 else 0),
             month=(subscription.start_date.month % 12) + 1
         )
+
 
         db.add(subscription)
         db.commit()
 
-def handle_payment_succeeded(payment_intent: dict, event: dict):
+
+#Pago único
+def handle_one_time_payment(payment_intent: dict, event: dict):
     from app.db.session import engine
     from app.models.payment import Payment
     from app.models.subscription import Subscription
@@ -106,6 +108,100 @@ def handle_payment_succeeded(payment_intent: dict, event: dict):
 
         db.add(payment)
         db.commit()
+
+#Pago de suscripción
+def handle_subscription_payment(invoice: dict, event: dict):
+    from app.db.session import engine
+    from app.models.payment import Payment
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+    from datetime import datetime
+
+    print("\n========== STRIPE SUBSCRIPTION PAYMENT ==========")
+
+    invoice_id = invoice.get("id")
+
+    stripe_sub_id = (
+        invoice.get("parent", {})
+               .get("subscription_details", {})
+               .get("subscription")
+        or invoice.get("lines", {})
+                  .get("data", [{}])[0]
+                  .get("parent", {})
+                  .get("subscription_item_details", {})
+                  .get("subscription")
+    )
+
+    internal_subscription_id = (
+        invoice.get("parent", {})
+               .get("subscription_details", {})
+               .get("metadata", {})
+               .get("subscription_id")
+    )
+
+    # print("stripe_sub_id:", stripe_sub_id)
+    # print("internal_subscription_id:", internal_subscription_id)
+    # print("invoice_id:", invoice_id)
+
+    if not invoice_id:
+        print("EXIT: invoice_id es None")
+        return
+
+    with Session(engine) as db:
+
+        # 1 Resolver subscription
+        subscription = None
+
+        if internal_subscription_id:
+            subscription = db.get(Subscription, int(internal_subscription_id))
+
+        if not subscription and stripe_sub_id:
+            subscription = db.exec(
+                select(Subscription).where(
+                    Subscription.stripe_subscription_id == stripe_sub_id
+                )
+            ).first()
+
+        if not subscription:
+            print("EXIT: No se pudo resolver subscription")
+            return
+
+        # 2 Idempotencia
+        existing = db.exec(
+            select(Payment).where(
+                Payment.provider_payment_id == invoice_id
+            )
+        ).first()
+
+        if existing:
+            print("Payment ya existe")
+            return
+
+        paid_at_ts = invoice.get("status_transitions", {}).get("paid_at")
+        paid_at = (
+            datetime.utcfromtimestamp(paid_at_ts)
+            if paid_at_ts else datetime.utcnow()
+        )
+
+        payment = Payment(
+            subscription_id=subscription.id,
+            provider="stripe",
+            provider_payment_id=invoice_id,
+            amount=invoice["amount_paid"],
+            currency=invoice["currency"],
+            status="succeeded",
+            paid_at=paid_at,
+            raw_event=event,
+        )
+
+        db.add(payment)
+        db.commit()
+
+
+
+
+
+
 
 
 def handle_subscription_deleted(data: dict):
