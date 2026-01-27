@@ -58,7 +58,7 @@ def handle_checkout_completed(session_data: dict):
     from datetime import datetime
 
     subscription_id = session_data["metadata"]["subscription_id"]
-    checkout_session_id = session_data["id"]  # 🔑 ESTE ES EL BUENO
+    checkout_session_id = session_data["id"] 
     stripe_subscription_id = session_data.get("subscription")
 
     with Session(engine) as db:
@@ -66,13 +66,14 @@ def handle_checkout_completed(session_data: dict):
         if not subscription:
             return
 
+        print("\n========== STRIPE CHECKOUT COMPLETED ==========")
         # Activar suscripción
         subscription.status = "active"
         subscription.stripe_subscription_id = stripe_subscription_id
-        subscription.start_date = subscription.created_at.date()
-        subscription.end_date = subscription.start_date.replace(
-            month=(subscription.start_date.month % 12) + 1
-        )
+        # subscription.start_date = subscription.created_at.date()
+        # subscription.end_date = subscription.start_date.replace(
+        #     month=(subscription.start_date.month % 12) + 1
+        # )
 
 
         db.add(subscription)
@@ -115,7 +116,7 @@ def handle_subscription_payment(invoice: dict, event: dict):
     from app.models.payment import Payment
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     print("\n========== STRIPE SUBSCRIPTION PAYMENT ==========")
 
@@ -176,11 +177,23 @@ def handle_subscription_payment(invoice: dict, event: dict):
         if existing:
             print("Payment ya existe")
             return
+        
+        # 3 FECHAS REALES DESDE STRIPE (AQUÍ)
+        period = invoice["lines"]["data"][0]["period"]
+
+        subscription.start_date = datetime.fromtimestamp(
+            period["start"], tz=timezone.utc
+        ).date()
+
+        subscription.end_date = datetime.fromtimestamp(
+            period["end"], tz=timezone.utc
+        ).date()
+        
 
         paid_at_ts = invoice.get("status_transitions", {}).get("paid_at")
         paid_at = (
-            datetime.utcfromtimestamp(paid_at_ts)
-            if paid_at_ts else datetime.utcnow()
+            datetime.fromtimestamp(paid_at_ts, tz=timezone.utc)
+            if paid_at_ts else datetime.now(timezone.utc)
         )
 
         payment = Payment(
@@ -194,6 +207,7 @@ def handle_subscription_payment(invoice: dict, event: dict):
             raw_event=event,
         )
 
+        db.add(subscription)
         db.add(payment)
         db.commit()
 
