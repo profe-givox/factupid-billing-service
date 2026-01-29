@@ -1,3 +1,4 @@
+import logging
 import stripe
 from fastapi import APIRouter, Request, HTTPException, status
 from sqlmodel import Session, select
@@ -9,6 +10,7 @@ from app.models.subscription import Subscription
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
 
 
 @router.post("/stripe")
@@ -33,6 +35,7 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail="Invalid payload")
 
     # Evento principal
+    logger.info("Stripe webhook recibido: %s", event.get("type"))
     if event["type"] == "checkout.session.completed":
         handle_checkout_completed(event["data"]["object"])
         
@@ -50,8 +53,9 @@ def handle_checkout_completed(session_data: dict):
     Activa la suscripcion cuando Stripe confirma el pago.
     """
     from app.db.session import engine  # import local para evitar ciclos
+    from app.models.plan import Plan
 
-    subscription_id = session_data["metadata"].get("subscription_id")
+    subscription_id = session_data.get("metadata", {}).get("subscription_id")
 
     if not subscription_id:
         return
@@ -65,7 +69,7 @@ def handle_checkout_completed(session_data: dict):
         if not subscription:
             return
 
-        subscription.stripe_subscription_id = session_data["subscription"]
+        subscription.stripe_subscription_id = session_data.get("subscription")
         subscription.status = "active"
         subscription.start_date = subscription.start_date or subscription.created_at.date()
 
@@ -77,6 +81,21 @@ def handle_checkout_completed(session_data: dict):
 
         db.add(subscription)
         db.commit()
+
+        plan_code = session_data.get("metadata", {}).get("plan_code")
+        user_id = session_data.get("metadata", {}).get("user_id")
+
+        if not plan_code or not user_id:
+            plan = db.get(Plan, subscription.plan_id)
+            plan_code = plan.code if plan else plan_code
+            user_id = user_id or str(subscription.user_id)
+
+        if plan_code and user_id:
+            notify_main_app(
+                user_id=int(user_id),
+                plan_code=plan_code,
+                subscription_id=subscription.id,
+            )
 
 def handle_payment_succeeded(payment_intent: dict, event: dict):
     from app.db.session import engine
@@ -130,3 +149,35 @@ def handle_subscription_deleted(data: dict):
 
         db.add(subscription)
         db.commit()
+
+
+def notify_main_app(*, user_id: int, plan_code: str, subscription_id: int) -> None:
+    try:
+        import httpx
+    except ModuleNotFoundError:
+        logger.warning("httpx no instalado: no se pudo notificar a Django.")
+        return
+    base_url = settings.MAIN_APP_BASE.rstrip("/")
+    url = f"{base_url}/checkout/complete/"
+    headers = {}
+
+    if settings.MAIN_APP_WEBHOOK_SECRET:
+        headers["X-Webhook-Token"] = settings.MAIN_APP_WEBHOOK_SECRET
+
+    payload = {
+        "user_id": user_id,
+        "plan_code": plan_code,
+        "subscription_id": subscription_id,
+    }
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(url, json=payload, headers=headers)
+            if response.status_code >= 400:
+                logger.warning(
+                    "Main app webhook failed: %s %s",
+                    response.status_code,
+                    response.text,
+                )
+    except Exception as exc:
+        logger.warning("Main app webhook error: %s", exc)

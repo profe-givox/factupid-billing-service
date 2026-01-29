@@ -92,6 +92,9 @@ ALLOWED_HOSTS = ['192.168.1.118','ae5f-187-140-74-176.ngrok-free.app','0.0.0.0',
 
 CSRF_TRUSTED_ORIGINS = ['https://app.factupid.com','https://*.ngrok-free.app','https://*.127.0.0.1', 'https://192.168.54.31']
 
+# Webhook compartido con API de cobranza (opcional).
+COBRANZA_WEBHOOK_SECRET = config('COBRANZA_WEBHOOK_SECRET', default='')
+
 # Application references
 # https://docs.djangoproject.com/en/2.1/ref/settings/#std:setting-INSTALLED_APPS
 INSTALLED_APPS = [

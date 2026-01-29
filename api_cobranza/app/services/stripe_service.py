@@ -12,6 +12,7 @@ def create_checkout_session(
     currency: str,
     subscription_id: int,
     user_id: int,
+    plan_code: str,
 ) -> stripe.checkout.Session:
     """
     Crea una Stripe Checkout Session asociada a una suscripcion pending.
@@ -35,11 +36,13 @@ def create_checkout_session(
         metadata={
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
+            "plan_code": plan_code,
         },
         payment_intent_data={
-        "metadata": {
-            "subscription_id": str(subscription_id),
-            "user_id": str(user_id),
+            "metadata": {
+                "subscription_id": str(subscription_id),
+                "user_id": str(user_id),
+                "plan_code": plan_code,
             }
         },
         
@@ -69,6 +72,7 @@ def create_subscription_checkout_session(
     stripe_price_id: str,
     subscription_id: int,
     user_id: int,
+    plan_code: str,
 ) -> stripe.checkout.Session:
     """
     Crea una Checkout Session para suscripción SaaS real.
@@ -86,6 +90,7 @@ def create_subscription_checkout_session(
         metadata={
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
+            "plan_code": plan_code,
         },
         success_url=settings.STRIPE_SUCCESS_URL,
         cancel_url=settings.STRIPE_CANCEL_URL,

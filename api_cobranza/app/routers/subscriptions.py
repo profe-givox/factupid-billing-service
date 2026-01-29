@@ -43,6 +43,7 @@ def start_subscription(
             stripe_price_id=plan.stripe_price_id,
             subscription_id=subscription.id,
             user_id=user_id,
+            plan_code=plan.code,
         )
 
         return {

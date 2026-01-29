@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     STRIPE_SUCCESS_URL: str
     STRIPE_CANCEL_URL: str
 
+    # Main app webhook (Django)
+    MAIN_APP_BASE: str = "http://127.0.0.1:8000"
+    MAIN_APP_WEBHOOK_SECRET: str = ""
+
     class Config:
         env_file = ".env"
 

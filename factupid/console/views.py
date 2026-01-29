@@ -5,6 +5,8 @@ Definition of views.
 from datetime import datetime
 import os
 import re
+import json
+import logging
 from django.shortcuts import redirect, render
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from spyne.decorator import rpc
@@ -72,6 +74,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
 import requests
 from urllib.parse import urlencode
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -481,6 +487,115 @@ def checkout_success(request):
 def checkout_cancel(request):
     # Placeholder simple para cancelación (puede reemplazarse por template).
     return HttpResponse("Pago cancelado. Si necesitas ayuda, contáctanos.")
+
+
+
+def _resolve_service_and_plan(plan_code):
+    plan_code = (plan_code or "").strip().lower()
+    if not plan_code:
+        return None, None
+
+    plan_map = {
+        "ondemand": ("CFDI", ["OnDemand", "ONDEMAND", "On Demand", "ON DEMAND"]),
+        "enterprise": ("CFDI", ["Enterprise"]),
+        "pro": ("CFDI", ["PRO", "Pro"]),
+        "free": ("CFDI", ["FREE", "Free"]),
+        "enterprise_api": ("Invoice stamping", ["Enterprise"]),
+        "pro_api": ("Invoice stamping", ["PRO", "Pro"]),
+        "free_api": ("Invoice stamping", ["FREE", "Free"]),
+    }
+
+    service_name, plan_names = plan_map.get(plan_code, (None, None))
+    if not service_name:
+        return None, None
+
+    service = Service.objects.filter(nombre__iexact=service_name).first()
+    if not service:
+        return None, None
+
+    plan = None
+    for name in plan_names or []:
+        plan = Plan.objects.filter(nombre__iexact=name).first()
+        if plan:
+            break
+
+    if not plan and plan_code == "ondemand":
+        plan = Plan.objects.filter(tipo__iexact="bajo consumo").first()
+
+    if not plan:
+        return service, None
+
+    return service, plan
+
+
+@csrf_exempt
+@require_POST
+def checkout_complete(request):
+    token = request.headers.get("X-Webhook-Token", "")
+    if settings.COBRANZA_WEBHOOK_SECRET and token != settings.COBRANZA_WEBHOOK_SECRET:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except ValueError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    user_id = payload.get("user_id")
+    plan_code = payload.get("plan_code")
+
+    if not user_id or not plan_code:
+        return JsonResponse({"error": "Missing user_id or plan_code"}, status=400)
+
+    usuario = User.objects.filter(id=user_id).first()
+    if not usuario:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    servicio, plan = _resolve_service_and_plan(plan_code)
+    if not servicio:
+        return JsonResponse({"error": "Service not found for plan_code"}, status=404)
+    if not plan:
+        return JsonResponse({"error": "Plan not found for plan_code"}, status=404)
+
+    service_plan = Service_Plan.objects.filter(
+        service=servicio, plan=plan, isActive=True
+    ).first()
+
+    defaults = {
+        "idPlan": plan,
+        "idServicePlan": service_plan,
+        "date_cutoff": timezone.now().date() + timedelta(days=30),
+        "aceptarTerminos": True,
+    }
+
+    user_service, created = User_Service.objects.get_or_create(
+        idUser=usuario,
+        idService=servicio,
+        defaults=defaults,
+    )
+
+    if not created:
+        user_service.idPlan = plan
+        user_service.idServicePlan = service_plan
+        user_service.date_cutoff = defaults["date_cutoff"]
+        user_service.aceptarTerminos = True
+        user_service.save()
+
+    logger.info(
+        "User_Service actualizado por checkout: user_id=%s plan_code=%s service=%s plan=%s created=%s",
+        usuario.id,
+        plan_code,
+        servicio.nombre,
+        plan.nombre,
+        created,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "created": created,
+            "user_service_id": user_service.id,
+        }
+    )
 
 
 

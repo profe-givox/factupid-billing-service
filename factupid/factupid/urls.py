@@ -28,6 +28,7 @@ urlpatterns = [
     # URLs de retorno de Stripe
     path('checkout/success/', console_views.checkout_success, name='checkout_success'),
     path('checkout/cancel/', console_views.checkout_cancel, name='checkout_cancel'),
+    path('checkout/complete/', console_views.checkout_complete, name='checkout_complete'),
     path('', cfdi_views.home, name='home'),
     path('contact/', views.contact, name='contact'),
     path('about/', views.about, name='about'),

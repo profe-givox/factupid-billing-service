@@ -12,9 +12,10 @@ from app.services.stripe_service import (
 )
 from app.schemas.payment import CheckoutSessionResponse
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.services.stripe_service import cancel_stripe_subscription
 from app.schemas.subscription import SubscriptionCancel
+from app.routers.webhooks import notify_main_app
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -69,6 +70,7 @@ def init_subscription(
             stripe_price_id=plan.stripe_price_id,
             subscription_id=subscription.id,
             user_id=subscription.user_id,
+            plan_code=plan.code,
         )
     else:
         checkout_session = create_checkout_session(
@@ -77,6 +79,20 @@ def init_subscription(
             currency=plan.currency,
             subscription_id=subscription.id,
             user_id=subscription.user_id,
+            plan_code=plan.code,
+        )
+
+    # 4 Si es plan gratuito (one_time con precio 0), activar de inmediato y notificar a Django.
+    if plan.billing_type == "one_time" and plan.price == 0:
+        subscription.status = "active"
+        subscription.start_date = subscription.start_date or subscription.created_at.date()
+        subscription.end_date = subscription.start_date + timedelta(days=30)
+        session.add(subscription)
+        session.commit()
+        notify_main_app(
+            user_id=subscription.user_id,
+            plan_code=plan.code,
+            subscription_id=subscription.id,
         )
 
     return {
