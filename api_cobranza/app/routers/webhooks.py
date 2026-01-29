@@ -11,6 +11,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
+
 @router.post("/stripe")
 async def stripe_webhook(
     request: Request,
@@ -48,7 +49,8 @@ async def stripe_webhook(
 
     return {"status": "ok"}
 
-
+# Checkout activa la suscripción
+# Invoice define el ciclo
 
 def handle_checkout_completed(session_data: dict):
     from app.db.session import engine
@@ -222,7 +224,7 @@ def handle_subscription_deleted(data: dict):
     from app.db.session import engine
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     stripe_sub_id = data["id"]
 
@@ -236,7 +238,7 @@ def handle_subscription_deleted(data: dict):
             return
 
         subscription.status = "canceled"
-        subscription.canceled_at = datetime.utcnow()
+        subscription.canceled_at = datetime.now(timezone.utc)
 
         db.add(subscription)
         db.commit()

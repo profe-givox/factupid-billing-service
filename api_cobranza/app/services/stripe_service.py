@@ -58,10 +58,21 @@ def cancel_stripe_subscription(
     """
     Cancela una suscripción en Stripe.
     """
-    return stripe.Subscription.modify(
-        stripe_subscription_id,
-        cancel_at_period_end=at_period_end,
-    )
+    # return stripe.Subscription.modify(
+    #     stripe_subscription_id,
+    #     cancel_at_period_end=at_period_end,
+    # )
+    if at_period_end:
+        # Cancelación programada
+        return stripe.Subscription.modify(
+            stripe_subscription_id,
+            cancel_at_period_end=True,
+        )
+    else:
+        # Cancelación inmediata
+        return stripe.Subscription.delete(
+            stripe_subscription_id
+        )
 
 
 def create_subscription_checkout_session(
