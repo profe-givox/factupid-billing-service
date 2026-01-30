@@ -49,7 +49,11 @@ def create_checkout_session(
 
     return session
 
+# En Stripe:
 
+# modify(cancel_at_period_end=True) → cancelación futura
+
+# delete(subscription) → cancelación inmediata real
 def cancel_stripe_subscription(
     *,
     stripe_subscription_id: str,
