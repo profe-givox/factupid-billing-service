@@ -47,6 +47,7 @@ def seed_plans():
             "name": "Plan Free API",
             "price": 0,
             "currency": "MXN",
+
             "interval": None,
             "billing_type": "one_time",
             "stripe_price_id": None,
@@ -64,6 +65,7 @@ def seed_plans():
             "code": "enterprise_api",
             "name": "Plan Enterprise API",
             "price": 299,
+
             "currency": "MXN",
             "interval": "month",
             "billing_type": "subscription",
@@ -84,4 +86,6 @@ def seed_plans():
                 plan.stripe_price_id = plan_data.get("stripe_price_id")
                 plan.billing_type = plan_data["billing_type"]
 
+
         session.commit()
+

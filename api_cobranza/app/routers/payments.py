@@ -6,6 +6,7 @@ from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.schemas.subscription import SubscriptionCreate, SubscriptionRead
 
+
 from app.services.stripe_service import (
     create_checkout_session,
     create_subscription_checkout_session,
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta
 from app.services.stripe_service import cancel_stripe_subscription
 from app.schemas.subscription import SubscriptionCancel
 from app.routers.webhooks import notify_main_app
+
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -58,6 +60,7 @@ def init_subscription(
     session.commit()
     session.refresh(subscription)
 
+
     # 3 Crear Stripe Checkout Session segun el tipo de cobro
     if plan.billing_type == "subscription":
         if not plan.stripe_price_id:
@@ -95,6 +98,15 @@ def init_subscription(
             plan_code=plan.code,
             subscription_id=subscription.id,
         )
+
+    # 3 Crear Stripe Checkout Session
+    checkout_session = create_checkout_session(
+        plan_name=plan.name,
+        amount=plan.price,
+        currency=plan.currency,
+        subscription_id=subscription.id,
+        user_id=subscription.user_id,
+    )
 
     return {
         "subscription": SubscriptionRead(
@@ -155,4 +167,6 @@ def cancel_subscription(
         "status": "ok",
         "subscription_id": subscription.id,
         "cancel_at_period_end": data.at_period_end,
+
     }
+

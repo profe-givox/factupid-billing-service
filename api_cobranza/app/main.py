@@ -1,5 +1,8 @@
 from fastapi import FastAPI
+<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
+=======
+>>>>>>> imanol
 from app.routers import plans, payments, webhooks, subscriptions
 from app.db.session import engine
 from app.db.base import create_db_and_tables
@@ -11,6 +14,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+<<<<<<< HEAD
 # Permite llamadas desde el front local (Hugo) en desarrollo
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+=======
+>>>>>>> imanol
 
 app.include_router(plans.router)
 app.include_router(payments.router)

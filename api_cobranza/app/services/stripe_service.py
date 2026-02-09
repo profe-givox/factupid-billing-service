@@ -12,13 +12,15 @@ def create_checkout_session(
     currency: str,
     subscription_id: int,
     user_id: int,
+
     plan_code: str,
+
 ) -> stripe.checkout.Session:
     """
     Crea una Stripe Checkout Session asociada a una suscripcion pending.
     """
 
-    # Incluye plan_code y user_id en metadata para que el webhook pueda crear el User_Service en Django.
+
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         mode="payment",
@@ -37,6 +39,7 @@ def create_checkout_session(
         metadata={
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
+
             "plan_code": plan_code,
         },
         payment_intent_data={
@@ -44,6 +47,7 @@ def create_checkout_session(
                 "subscription_id": str(subscription_id),
                 "user_id": str(user_id),
                 "plan_code": plan_code,
+
             }
         },
         
@@ -54,6 +58,12 @@ def create_checkout_session(
     return session
 
 
+# En Stripe:
+
+# modify(cancel_at_period_end=True) → cancelación futura
+
+# delete(subscription) → cancelación inmediata real
+
 def cancel_stripe_subscription(
     *,
     stripe_subscription_id: str,
@@ -62,10 +72,23 @@ def cancel_stripe_subscription(
     """
     Cancela una suscripción en Stripe.
     """
-    return stripe.Subscription.modify(
-        stripe_subscription_id,
-        cancel_at_period_end=at_period_end,
-    )
+
+    # return stripe.Subscription.modify(
+    #     stripe_subscription_id,
+    #     cancel_at_period_end=at_period_end,
+    # )
+    if at_period_end:
+        # Cancelación programada
+        return stripe.Subscription.modify(
+            stripe_subscription_id,
+            cancel_at_period_end=True,
+        )
+    else:
+        # Cancelación inmediata
+        return stripe.Subscription.delete(
+            stripe_subscription_id
+        )
+
 
 
 def create_subscription_checkout_session(
@@ -73,7 +96,9 @@ def create_subscription_checkout_session(
     stripe_price_id: str,
     subscription_id: int,
     user_id: int,
+
     plan_code: str,
+
 ) -> stripe.checkout.Session:
     """
     Crea una Checkout Session para suscripción SaaS real.
@@ -91,8 +116,12 @@ def create_subscription_checkout_session(
         metadata={
             "subscription_id": str(subscription_id),
             "user_id": str(user_id),
+
             "plan_code": plan_code,
+
         },
+   
+  
         success_url=settings.STRIPE_SUCCESS_URL,
         cancel_url=settings.STRIPE_CANCEL_URL,
     )
