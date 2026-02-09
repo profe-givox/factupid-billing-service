@@ -18,6 +18,7 @@ def create_checkout_session(
     Crea una Stripe Checkout Session asociada a una suscripcion pending.
     """
 
+    # Incluye plan_code y user_id en metadata para que el webhook pueda crear el User_Service en Django.
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         mode="payment",

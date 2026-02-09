@@ -152,6 +152,7 @@ def handle_subscription_deleted(data: dict):
 
 
 def notify_main_app(*, user_id: int, plan_code: str, subscription_id: int) -> None:
+    # Notifica a Django para crear/actualizar el User_Service al completar el cobro.
     try:
         import httpx
     except ModuleNotFoundError:

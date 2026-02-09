@@ -491,6 +491,7 @@ def checkout_cancel(request):
 
 
 def _resolve_service_and_plan(plan_code):
+    # Mapea plan_code (Stripe) a Service/Plan internos de Console.
     plan_code = (plan_code or "").strip().lower()
     if not plan_code:
         return None, None
@@ -531,6 +532,7 @@ def _resolve_service_and_plan(plan_code):
 @csrf_exempt
 @require_POST
 def checkout_complete(request):
+    # Webhook interno: crea/actualiza User_Service al completar pago en Stripe.
     token = request.headers.get("X-Webhook-Token", "")
     if settings.COBRANZA_WEBHOOK_SECRET and token != settings.COBRANZA_WEBHOOK_SECRET:
         return JsonResponse({"error": "Unauthorized"}, status=401)

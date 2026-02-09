@@ -83,6 +83,7 @@ def init_subscription(
         )
 
     # 4 Si es plan gratuito (one_time con precio 0), activar de inmediato y notificar a Django.
+    # Plan gratuito: activa de inmediato y notifica a Django sin esperar webhook de Stripe.
     if plan.billing_type == "one_time" and plan.price == 0:
         subscription.status = "active"
         subscription.start_date = subscription.start_date or subscription.created_at.date()
