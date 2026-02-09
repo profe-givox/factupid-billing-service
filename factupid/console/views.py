@@ -404,6 +404,9 @@ def checkout_start(request):
     if not plan_code:
         return HttpResponse("Falta el plan.", status=400)
 
+    plan_id = request.GET.get("plan_id") if request.method == "GET" else request.POST.get("plan_id")
+    service_id = request.GET.get("service_id") if request.method == "GET" else request.POST.get("service_id")
+
     email = (request.GET.get("email") if request.method == "GET" else request.POST.get("email") or "").strip()
 
     if request.user.is_authenticated:
@@ -455,9 +458,15 @@ def checkout_start(request):
 
     try:
         # Llamada server-to-server para crear la sesión de Stripe.
+        payload = {"user_id": user.id, "plan_code": plan_code}
+        if plan_id:
+            payload["plan_id"] = plan_id
+        if service_id:
+            payload["service_id"] = service_id
+
         response = requests.post(
             f"{api_base}/payments/init",
-            json={"user_id": user.id, "plan_code": plan_code},
+            json=payload,
             timeout=15,
         )
     except Exception:
@@ -529,8 +538,107 @@ def _resolve_service_and_plan(plan_code):
     return service, plan
 
 
+def _resolve_service_and_plan_by_ids(service_id, plan_id):
+    try:
+        service_id = int(service_id)
+        plan_id = int(plan_id)
+    except (TypeError, ValueError):
+        return None, None, None
+
+    service = Service.objects.filter(id=service_id).first()
+    plan = Plan.objects.filter(id=plan_id).first()
+    if not service or not plan:
+        return service, plan, None
+
+    service_plan = Service_Plan.objects.filter(service=service, plan=plan, isActive=True).first()
+    return service, plan, service_plan
+
+
 @csrf_exempt
 @require_POST
+# def checkout_complete(request):
+#     # Webhook interno: crea/actualiza User_Service al completar pago en Stripe.
+#     token = request.headers.get("X-Webhook-Token", "")
+#     if settings.COBRANZA_WEBHOOK_SECRET and token != settings.COBRANZA_WEBHOOK_SECRET:
+#         return JsonResponse({"error": "Unauthorized"}, status=401)
+#
+#     try:
+#         payload = json.loads(request.body.decode("utf-8") or "{}")
+#     except ValueError:
+#         return JsonResponse({"error": "Invalid JSON"}, status=400)
+#
+#     user_id = payload.get("user_id")
+#     plan_code = payload.get("plan_code")
+#     plan_id = payload.get("plan_id")
+#     service_id = payload.get("service_id")
+#
+#     if not user_id:
+#         return JsonResponse({"error": "Missing user_id"}, status=400)
+#
+#     if not plan_code and not (plan_id and service_id):
+#         return JsonResponse({"error": "Missing plan_code or plan_id/service_id"}, status=400)
+#
+#     usuario = User.objects.filter(id=user_id).first()
+#     if not usuario:
+#         return JsonResponse({"error": "User not found"}, status=404)
+#
+#     if plan_id and service_id:
+#         servicio, plan, service_plan = _resolve_service_and_plan_by_ids(service_id, plan_id)
+#         if not servicio:
+#             return JsonResponse({"error": "Service not found for service_id"}, status=404)
+#         if not plan:
+#             return JsonResponse({"error": "Plan not found for plan_id"}, status=404)
+#         if not service_plan:
+#             return JsonResponse({"error": "Service_Plan not active for service_id/plan_id"}, status=404)
+#     else:
+#         servicio, plan = _resolve_service_and_plan(plan_code)
+#         if not servicio:
+#             return JsonResponse({"error": "Service not found for plan_code"}, status=404)
+#         if not plan:
+#             return JsonResponse({"error": "Plan not found for plan_code"}, status=404)
+#
+#         service_plan = Service_Plan.objects.filter(
+#             service=servicio, plan=plan, isActive=True
+#         ).first()
+#         if not service_plan:
+#             return JsonResponse({"error": "Service_Plan not active for plan_code"}, status=404)
+#
+#     defaults = {
+#         "idPlan": plan,
+#         "idServicePlan": service_plan,
+#         "date_cutoff": timezone.now().date() + timedelta(days=30),
+#         "aceptarTerminos": True,
+#     }
+#
+#     user_service, created = User_Service.objects.get_or_create(
+#         idUser=usuario,
+#         idService=servicio,
+#         defaults=defaults,
+#     )
+#
+#     if not created:
+#         user_service.idPlan = plan
+#         user_service.idServicePlan = service_plan
+#         user_service.date_cutoff = defaults["date_cutoff"]
+#         user_service.aceptarTerminos = True
+#         user_service.save()
+#
+#     logger.info(
+#         "User_Service actualizado por checkout: user_id=%s plan_code=%s service=%s plan=%s created=%s",
+#         usuario.id,
+#         plan_code,
+#         servicio.nombre,
+#         plan.nombre,
+#         created,
+#     )
+#
+#     return JsonResponse(
+#         {
+#             "success": True,
+#             "created": created,
+#             "user_service_id": user_service.id,
+#         }
+#     )
 def checkout_complete(request):
     # Webhook interno: crea/actualiza User_Service al completar pago en Stripe.
     token = request.headers.get("X-Webhook-Token", "")
@@ -544,23 +652,41 @@ def checkout_complete(request):
 
     user_id = payload.get("user_id")
     plan_code = payload.get("plan_code")
+    plan_id = payload.get("plan_id")
+    service_id = payload.get("service_id")
 
-    if not user_id or not plan_code:
-        return JsonResponse({"error": "Missing user_id or plan_code"}, status=400)
+    if not user_id:
+        return JsonResponse({"error": "Missing user_id"}, status=400)
+    if not plan_code and not (plan_id and service_id):
+        return JsonResponse({"error": "Missing plan_code or plan_id/service_id"}, status=400)
 
     usuario = User.objects.filter(id=user_id).first()
     if not usuario:
         return JsonResponse({"error": "User not found"}, status=404)
 
-    servicio, plan = _resolve_service_and_plan(plan_code)
-    if not servicio:
-        return JsonResponse({"error": "Service not found for plan_code"}, status=404)
-    if not plan:
-        return JsonResponse({"error": "Plan not found for plan_code"}, status=404)
+    def _err(msg, code):
+        return JsonResponse({"error": msg}, status=code)
 
-    service_plan = Service_Plan.objects.filter(
-        service=servicio, plan=plan, isActive=True
-    ).first()
+    if plan_id and service_id:
+        servicio, plan, service_plan = _resolve_service_and_plan_by_ids(service_id, plan_id)
+        if not servicio:
+            return _err("Service not found for service_id", 404)
+        if not plan:
+            return _err("Plan not found for plan_id", 404)
+        if not service_plan:
+            return _err("Service_Plan not active for service_id/plan_id", 404)
+    else:
+        servicio, plan = _resolve_service_and_plan(plan_code)
+        if not servicio:
+            return _err("Service not found for plan_code", 404)
+        if not plan:
+            return _err("Plan not found for plan_code", 404)
+
+        service_plan = Service_Plan.objects.filter(
+            service=servicio, plan=plan, isActive=True
+        ).first()
+        if not service_plan:
+            return _err("Service_Plan not active for plan_code", 404)
 
     defaults = {
         "idPlan": plan,
