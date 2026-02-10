@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+import stripe
 from sqlmodel import Session, select
 
 from app.db.session import get_session
@@ -11,6 +13,8 @@ from app.services.stripe_service import (
     create_checkout_session,
     create_subscription_checkout_session,
 )
+from app.core.config import settings
+from app.routers.webhooks import handle_checkout_completed
 from app.schemas.payment import CheckoutSessionResponse
 
 from datetime import datetime, timedelta
@@ -20,6 +24,10 @@ from app.routers.webhooks import notify_main_app
 
 
 router = APIRouter(prefix="/payments", tags=["payments"])
+
+
+class CheckoutConfirmRequest(BaseModel):
+    session_id: str
 
 
 @router.post(
@@ -99,15 +107,6 @@ def init_subscription(
             subscription_id=subscription.id,
         )
 
-    # 3 Crear Stripe Checkout Session
-    checkout_session = create_checkout_session(
-        plan_name=plan.name,
-        amount=plan.price,
-        currency=plan.currency,
-        subscription_id=subscription.id,
-        user_id=subscription.user_id,
-    )
-
     return {
         "subscription": SubscriptionRead(
             id=subscription.id,
@@ -121,6 +120,33 @@ def init_subscription(
         ),
         "checkout_url": checkout_session.url,
     }
+
+
+@router.post("/confirm")
+def confirm_checkout(data: CheckoutConfirmRequest):
+    """
+    Fallback: confirma un Checkout Session desde Django /checkout/success.
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        session = stripe.checkout.Session.retrieve(data.session_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo recuperar la sesión de Stripe",
+        )
+
+    payment_status = getattr(session, "payment_status", None)
+    status_value = getattr(session, "status", None)
+
+    if payment_status != "paid" and status_value != "complete":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Pago no confirmado todavía",
+        )
+
+    handle_checkout_completed(session)
+    return {"status": "ok"}
 
 
 @router.post("/subscriptions/{subscription_id}/cancel")

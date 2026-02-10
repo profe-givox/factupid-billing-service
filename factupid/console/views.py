@@ -489,6 +489,24 @@ def checkout_start(request):
 
 
 def checkout_success(request):
+    session_id = request.GET.get("session_id")
+    if session_id:
+        api_base = getattr(settings, "COBRANZA_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+        try:
+            response = requests.post(
+                f"{api_base}/payments/confirm",
+                json={"session_id": session_id},
+                timeout=15,
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "Confirm fallback failed: %s %s",
+                    response.status_code,
+                    response.text,
+                )
+        except Exception:
+            logger.warning("Confirm fallback error")
+
     # Placeholder simple para éxito (puede reemplazarse por template).
     return HttpResponse("Pago completado. Revisa tu correo para activar tu acceso.")
 
@@ -524,13 +542,37 @@ def _resolve_service_and_plan(plan_code):
         return None, None
 
     plan = None
+    # 1) Match exact plan name but scoped to the service via Service_Plan.
     for name in plan_names or []:
-        plan = Plan.objects.filter(nombre__iexact=name).first()
-        if plan:
+        service_plan = Service_Plan.objects.filter(
+            service=service,
+            plan__nombre__iexact=name,
+            isActive=True,
+        ).select_related("plan").first()
+        if service_plan:
+            plan = service_plan.plan
             break
 
+    # 2) Fallback: match by partial name (e.g. "Enterprise API", "PRO CFDI").
+    if not plan:
+        for name in plan_names or []:
+            service_plan = Service_Plan.objects.filter(
+                service=service,
+                plan__nombre__icontains=name,
+                isActive=True,
+            ).select_related("plan").first()
+            if service_plan:
+                plan = service_plan.plan
+                break
+
     if not plan and plan_code == "ondemand":
-        plan = Plan.objects.filter(tipo__iexact="bajo consumo").first()
+        service_plan = Service_Plan.objects.filter(
+            service=service,
+            plan__tipo__iexact="bajo consumo",
+            isActive=True,
+        ).select_related("plan").first()
+        if service_plan:
+            plan = service_plan.plan
 
     if not plan:
         return service, None

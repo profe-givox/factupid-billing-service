@@ -150,7 +150,7 @@
       </div>
       <h3>OnDemand</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="ondemand" data-plan-id="10" data-service-id="1" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="ondemand" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-pink">
       <div class="plan-badge">Mas vendido</div>
@@ -160,7 +160,7 @@
       </div>
       <h3>Enterprise</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="enterprise" data-plan-id="9" data-service-id="1" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="enterprise" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-salmon">
       <div class="plan-header">
@@ -169,7 +169,7 @@
       </div>
       <h3>PRO</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="pro" data-plan-id="7" data-service-id="1" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="pro" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-blue">
       <div class="plan-header">
@@ -178,7 +178,7 @@
       </div>
       <h3>FREE</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="free" data-plan-id="6" data-service-id="1" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="free" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-indigo">
       <div class="plan-header">
@@ -187,7 +187,7 @@
       </div>
       <h3>Enterprise</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="enterprise_api" data-plan-id="9" data-service-id="3" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="enterprise_api" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-teal">
       <div class="plan-header">
@@ -196,7 +196,7 @@
       </div>
       <h3>PRO</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="pro_api" data-plan-id="7" data-service-id="3" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="pro_api" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-orange">
       <div class="plan-header">
@@ -205,7 +205,7 @@
       </div>
       <h3>FREE</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="free_api" data-plan-id="6" data-service-id="3" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="free_api" data-user-id="0">Comprar</a>
     </div>
   </div>
 </section>
@@ -224,8 +224,6 @@
 
         var planCode = button.getAttribute("data-plan-code");
         if (!planCode) return;
-        var planId = button.getAttribute("data-plan-id");
-        var serviceId = button.getAttribute("data-service-id");
 
         var originalText = button.textContent;
         button.textContent = "Procesando...";
@@ -234,12 +232,6 @@
         // Construye la URL con el plan
         var url = new URL(checkoutStart, window.location.origin);
         url.searchParams.set("plan", planCode);
-        if (planId) {
-          url.searchParams.set("plan_id", planId);
-        }
-        if (serviceId) {
-          url.searchParams.set("service_id", serviceId);
-        }
 
         // Solicita correo para asociar el pago al usuario invitado
         var email = window.prompt("Ingresa tu correo para recibir el acceso:", "");

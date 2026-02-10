@@ -5,6 +5,15 @@ from app.core.config import settings
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
+def _ensure_session_id(success_url: str) -> str:
+    if "{CHECKOUT_SESSION_ID}" in success_url:
+        return success_url
+    if "session_id=" in success_url:
+        return success_url
+    sep = "&" if "?" in success_url else "?"
+    return f"{success_url}{sep}session_id={{CHECKOUT_SESSION_ID}}"
+
+
 def create_checkout_session(
     *,
     plan_name: str,
@@ -51,7 +60,7 @@ def create_checkout_session(
             }
         },
         
-        success_url=settings.STRIPE_SUCCESS_URL,
+        success_url=_ensure_session_id(settings.STRIPE_SUCCESS_URL),
         cancel_url=settings.STRIPE_CANCEL_URL,
     )
 
@@ -122,7 +131,7 @@ def create_subscription_checkout_session(
         },
    
   
-        success_url=settings.STRIPE_SUCCESS_URL,
+        success_url=_ensure_session_id(settings.STRIPE_SUCCESS_URL),
         cancel_url=settings.STRIPE_CANCEL_URL,
     )
 
