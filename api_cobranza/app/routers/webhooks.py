@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 async def stripe_webhook(
     request: Request,
 ):
+    # Punto de entrada de eventos Stripe:
+    # - checkout.session.completed -> activar suscripcion y notificar a Django
+    # - payment_intent.succeeded  -> registrar pago
+    # - customer.subscription.deleted -> marcar cancelacion
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
@@ -62,6 +66,7 @@ def handle_checkout_completed(session_data: dict):
     from app.db.session import engine  # import local para evitar ciclos
     from app.models.plan import Plan
 
+    # subscription_id viaja en metadata desde create_*_checkout_session.
     subscription_id = session_data.get("metadata", {}).get("subscription_id")
 
     if not subscription_id:
@@ -76,6 +81,7 @@ def handle_checkout_completed(session_data: dict):
         if not subscription:
             return
 
+        # Estado local de billing pasa a active al completar checkout.
         subscription.stripe_subscription_id = session_data.get("subscription")
         subscription.status = "active"
         subscription.start_date = subscription.start_date or subscription.created_at.date()
@@ -93,8 +99,13 @@ def handle_checkout_completed(session_data: dict):
         db.commit()
 
 
+        # Datos para sincronizar en Django (/checkout/complete):
+        # plan_code es la referencia estable; plan_id/service_id ayudan a resolver
+        # exactamente el Service_Plan de Console cuando coinciden.
         plan_code = session_data.get("metadata", {}).get("plan_code")
         user_id = session_data.get("metadata", {}).get("user_id")
+        plan_id = session_data.get("metadata", {}).get("plan_id")
+        service_id = session_data.get("metadata", {}).get("service_id")
 
         if not plan_code or not user_id:
             plan = db.get(Plan, subscription.plan_id)
@@ -102,10 +113,13 @@ def handle_checkout_completed(session_data: dict):
             user_id = user_id or str(subscription.user_id)
 
         if plan_code and user_id:
+            # Notificacion server-to-server hacia Django.
             notify_main_app(
                 user_id=int(user_id),
                 plan_code=plan_code,
                 subscription_id=subscription.id,
+                plan_id=int(plan_id) if plan_id else None,
+                service_id=int(service_id) if service_id else None,
             )
 
 def handle_payment_succeeded(payment_intent: dict, event: dict):
@@ -418,8 +432,16 @@ def handle_subscription_deleted(data: dict):
 
 
 
-def notify_main_app(*, user_id: int, plan_code: str, subscription_id: int) -> None:
-    # Notifica a Django para crear/actualizar el User_Service al completar el cobro.
+def notify_main_app(
+    *,
+    user_id: int,
+    plan_code: str,
+    subscription_id: int,
+    plan_id: int | None = None,
+    service_id: int | None = None,
+) -> None:
+    # Notifica a Django para crear/actualizar User_Service al completar cobro.
+    # Endpoint destino: {MAIN_APP_BASE}/checkout/complete/
     try:
         import httpx
     except ModuleNotFoundError:
@@ -437,6 +459,10 @@ def notify_main_app(*, user_id: int, plan_code: str, subscription_id: int) -> No
         "plan_code": plan_code,
         "subscription_id": subscription_id,
     }
+    if plan_id is not None:
+        payload["plan_id"] = plan_id
+    if service_id is not None:
+        payload["service_id"] = service_id
 
     try:
         with httpx.Client(timeout=10) as client:

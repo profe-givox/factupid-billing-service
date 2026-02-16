@@ -1,7 +1,7 @@
 {
 	"version": 3,
 	"file": "main.css",
-	"sourceRoot": "C:/Users/admin/Videos/New folder/factupid-billing-service/factupid-com",
+	"sourceRoot": "C:/Users/factupid/Documents/factupid-billing-service/factupid-com",
 	"sources": [
 		"ananke/css/main.css"
 	],

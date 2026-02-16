@@ -8,7 +8,9 @@ class SubscriptionBase(BaseModel):
     Campos comunes de una suscripcion.
     """
     user_id: int
-    plan_code: str
+    plan_code: Optional[str] = None
+    plan_id: Optional[int] = None
+    service_id: Optional[int] = None
 
 
 class SubscriptionCreate(SubscriptionBase):

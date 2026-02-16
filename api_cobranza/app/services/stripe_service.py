@@ -1,5 +1,6 @@
 import stripe
 from app.core.config import settings
+from typing import Optional
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -23,12 +24,24 @@ def create_checkout_session(
     user_id: int,
 
     plan_code: str,
+    plan_id: Optional[int] = None,
+    service_id: Optional[int] = None,
 
 ) -> stripe.checkout.Session:
     """
     Crea una Stripe Checkout Session asociada a una suscripcion pending.
     """
 
+
+    metadata = {
+        "subscription_id": str(subscription_id),
+        "user_id": str(user_id),
+        "plan_code": plan_code,
+    }
+    if plan_id is not None:
+        metadata["plan_id"] = str(plan_id)
+    if service_id is not None:
+        metadata["service_id"] = str(service_id)
 
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
@@ -45,19 +58,9 @@ def create_checkout_session(
                 "quantity": 1,
             }
         ],
-        metadata={
-            "subscription_id": str(subscription_id),
-            "user_id": str(user_id),
-
-            "plan_code": plan_code,
-        },
+        metadata=metadata,
         payment_intent_data={
-            "metadata": {
-                "subscription_id": str(subscription_id),
-                "user_id": str(user_id),
-                "plan_code": plan_code,
-
-            }
+            "metadata": metadata
         },
         
         success_url=_ensure_session_id(settings.STRIPE_SUCCESS_URL),
@@ -107,11 +110,23 @@ def create_subscription_checkout_session(
     user_id: int,
 
     plan_code: str,
+    plan_id: Optional[int] = None,
+    service_id: Optional[int] = None,
 
 ) -> stripe.checkout.Session:
     """
     Crea una Checkout Session para suscripción SaaS real.
     """
+
+    metadata = {
+        "subscription_id": str(subscription_id),
+        "user_id": str(user_id),
+        "plan_code": plan_code,
+    }
+    if plan_id is not None:
+        metadata["plan_id"] = str(plan_id)
+    if service_id is not None:
+        metadata["service_id"] = str(service_id)
 
     session = stripe.checkout.Session.create(
         mode="subscription",
@@ -122,13 +137,7 @@ def create_subscription_checkout_session(
                 "quantity": 1,
             }
         ],
-        metadata={
-            "subscription_id": str(subscription_id),
-            "user_id": str(user_id),
-
-            "plan_code": plan_code,
-
-        },
+        metadata=metadata,
    
   
         success_url=_ensure_session_id(settings.STRIPE_SUCCESS_URL),

@@ -7,7 +7,7 @@
     <title>Bienvenido a Factupid | Factupid</title>
     <meta name="viewport" content="width=device-width,minimum-scale=1">
     <meta name="description" content="Centraliza tus CFDI, reportes y cumplimiento fiscal en un solo lugar.">
-    <meta name="generator" content="Hugo 0.152.2">
+    <meta name="generator" content="Hugo 0.155.3">
     
     
     
@@ -55,7 +55,7 @@
 
   <meta itemprop="name" content="Bienvenido a Factupid">
   <meta itemprop="description" content="Centraliza tus CFDI, reportes y cumplimiento fiscal en un solo lugar.">
-  <meta itemprop="wordCount" content="192">
+  <meta itemprop="wordCount" content="212">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Bienvenido a Factupid">
   <meta name="twitter:description" content="Centraliza tus CFDI, reportes y cumplimiento fiscal en un solo lugar.">
@@ -84,19 +84,19 @@
         <ul class="pl0 mr3">
           
           <li class="list f5 f4-ns fw4 dib pr3">
-            <a class="hover-white white-90 no-underline" href="http://localhost:8000/console/" title="Console page">
+            <a class="hover-white white-90 no-underline" href="http://localhost:8000/console/" title="Console pagina">
               Console
             </a>
           </li>
           
           <li class="list f5 f4-ns fw4 dib pr3">
-            <a class="hover-white white-90 no-underline" href="http://localhost:8000/invoice/" title="Invoice page">
+            <a class="hover-white white-90 no-underline" href="http://localhost:8000/invoice/" title="Invoice pagina">
               Invoice
             </a>
           </li>
           
           <li class="list f5 f4-ns fw4 dib pr3">
-            <a class="hover-white white-90 no-underline" href="http://localhost:8000/cfdi/" title="CFDI page">
+            <a class="hover-white white-90 no-underline" href="http://localhost:8000/cfdi/" title="CFDI pagina">
               CFDI
             </a>
           </li>
@@ -150,7 +150,7 @@
       </div>
       <h3>OnDemand</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="ondemand" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="ondemand" data-plan-id="10" data-service-id="1" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-pink">
       <div class="plan-badge">Mas vendido</div>
@@ -160,7 +160,7 @@
       </div>
       <h3>Enterprise</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="enterprise" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="enterprise" data-plan-id="9" data-service-id="1" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-salmon">
       <div class="plan-header">
@@ -169,7 +169,7 @@
       </div>
       <h3>PRO</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="pro" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="pro" data-plan-id="7" data-service-id="1" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-blue">
       <div class="plan-header">
@@ -178,7 +178,7 @@
       </div>
       <h3>FREE</h3>
       <div class="plan-type">Tipo de servicio: App</div>
-      <a class="plan-action" href="#" data-plan-code="free" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="free" data-plan-id="6" data-service-id="1" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-indigo">
       <div class="plan-header">
@@ -187,7 +187,7 @@
       </div>
       <h3>Enterprise</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="enterprise_api" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="enterprise_api" data-plan-id="9" data-service-id="2" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-teal">
       <div class="plan-header">
@@ -196,7 +196,7 @@
       </div>
       <h3>PRO</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="pro_api" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="pro_api" data-plan-id="7" data-service-id="2" data-user-id="0">Comprar</a>
     </div>
     <div class="plan-card plan-orange">
       <div class="plan-header">
@@ -205,48 +205,127 @@
       </div>
       <h3>FREE</h3>
       <div class="plan-type">Tipo de servicio: API</div>
-      <a class="plan-action" href="#" data-plan-code="free_api" data-user-id="0">Comprar</a>
+      <a class="plan-action" href="#" data-plan-code="free_api" data-plan-id="6" data-service-id="2" data-user-id="0">Comprar</a>
     </div>
   </div>
 </section>
-  <script>
-  (function () {
-    var section = document.querySelector(".services-plans");
-    if (!section) return;
+<div id="checkout-email-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+  <div role="dialog" aria-modal="true" aria-labelledby="checkout-email-title" style="width:100%; max-width:460px; background:#fff; border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,.25); overflow:hidden;">
+    <div style="padding:16px 18px; border-bottom:1px solid #ececec;">
+      <h3 id="checkout-email-title" style="margin:0; font-size:1.2rem;">Ingresa tu correo</h3>
+      <p style="margin:8px 0 0; color:#555;">Lo usaremos para asociar tu compra y enviarte acceso.</p>
+    </div>
+    <div style="padding:16px 18px;">
+      <label for="checkout-email-input" style="display:block; margin-bottom:8px;">Correo electronico</label>
+      <input id="checkout-email-input" type="email" placeholder="tu-correo@dominio.com" style="width:100%; box-sizing:border-box; border:1px solid #cfcfcf; border-radius:8px; padding:10px 12px; font-size:1rem;">
+      <p id="checkout-email-error" style="display:none; color:#b42318; margin:8px 0 0; font-size:.92rem;">Ingresa un correo valido.</p>
+    </div>
+    <div style="padding:12px 18px 16px; display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #ececec;">
+      <button id="checkout-email-cancel" type="button" style="border:1px solid #d0d5dd; background:#fff; color:#222; border-radius:8px; padding:8px 12px; cursor:pointer;">Cancelar</button>
+      <button id="checkout-email-submit" type="button" style="border:none; background:#0d6efd; color:#fff; border-radius:8px; padding:8px 12px; cursor:pointer;">Continuar</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var section = document.querySelector(".services-plans");
+  if (!section) return;
 
-    // URL base del endpoint Django que inicia el checkout
-    var checkoutStart = section.getAttribute("data-checkout-start") || "http://127.0.0.1:8000/checkout/start";
+  var checkoutStart = section.getAttribute("data-checkout-start") || "http://127.0.0.1:8000/checkout/start";
+  var modal = document.getElementById("checkout-email-modal");
+  var emailInput = document.getElementById("checkout-email-input");
+  var emailError = document.getElementById("checkout-email-error");
+  var cancelBtn = document.getElementById("checkout-email-cancel");
+  var submitBtn = document.getElementById("checkout-email-submit");
+  var pendingUrl = null;
+  var activeButton = null;
 
-    var buttons = section.querySelectorAll(".plan-action[data-plan-code]");
-    buttons.forEach(function (button) {
-      button.addEventListener("click", function (event) {
-        event.preventDefault();
+  function resetButtonState() {
+    if (!activeButton) return;
+    var originalText = activeButton.getAttribute("data-original-text") || "Comprar";
+    activeButton.textContent = originalText;
+    activeButton.removeAttribute("aria-busy");
+    activeButton = null;
+  }
 
-        var planCode = button.getAttribute("data-plan-code");
-        if (!planCode) return;
+  function closeModal() {
+    modal.style.display = "none";
+    emailError.style.display = "none";
+    emailInput.value = "";
+    pendingUrl = null;
+    resetButtonState();
+  }
 
-        var originalText = button.textContent;
-        button.textContent = "Procesando...";
-        button.setAttribute("aria-busy", "true");
+  function openModal(url, button) {
+    pendingUrl = url;
+    activeButton = button;
+    modal.style.display = "flex";
+    emailInput.focus();
+  }
 
-        // Construye la URL con el plan
-        var url = new URL(checkoutStart, window.location.origin);
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  var buttons = section.querySelectorAll(".plan-action");
+  buttons.forEach(function (button) {
+    button.setAttribute("data-original-text", button.textContent);
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+
+      var planCode = button.getAttribute("data-plan-code");
+      var planId = button.getAttribute("data-plan-id");
+      var serviceId = button.getAttribute("data-service-id");
+      if (!planCode && !planId) return;
+
+      button.textContent = "Procesando...";
+      button.setAttribute("aria-busy", "true");
+
+      var url = new URL(checkoutStart, window.location.origin);
+      if (planCode) {
         url.searchParams.set("plan", planCode);
+      }
+      if (planId) {
+        url.searchParams.set("plan_id", planId);
+      }
+      if (serviceId) {
+        url.searchParams.set("service_id", serviceId);
+      }
+      // Fuerza flujo invitado: si el correo no existe, Django muestra registro.
+      url.searchParams.set("mode", "guest");
 
-        // Solicita correo para asociar el pago al usuario invitado
-        var email = window.prompt("Ingresa tu correo para recibir el acceso:", "");
-        if (email && email.trim()) {
-          url.searchParams.set("email", email.trim());
-        }
-
-        // Redirige a Django para crear la sesión de Stripe
-        window.location.href = url.toString();
-
-        button.textContent = originalText;
-        button.removeAttribute("aria-busy");
-      });
+      openModal(url, button);
     });
-  })();
+  });
+
+  cancelBtn.addEventListener("click", closeModal);
+
+  modal.addEventListener("click", function (event) {
+    if (event.target === modal) closeModal();
+  });
+
+  submitBtn.addEventListener("click", function () {
+    if (!pendingUrl) return;
+    var email = (emailInput.value || "").trim();
+    if (!isValidEmail(email)) {
+      emailError.style.display = "block";
+      return;
+    }
+    emailError.style.display = "none";
+    pendingUrl.searchParams.set("email", email);
+    window.location.href = pendingUrl.toString();
+  });
+
+  emailInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitBtn.click();
+    }
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  });
+})();
 </script>
 <h2 id="comienza-en-minutos">Comienza en minutos</h2>
 <ol>

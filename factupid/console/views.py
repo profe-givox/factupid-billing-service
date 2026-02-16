@@ -399,17 +399,22 @@ def reseteoEnviado(request):
 
 
 def checkout_start(request):
-    # Inicia checkout: valida plan, resuelve usuario (login o registro) y redirige a Stripe.
+    # Inicio del flujo desde landing/Hugo:
+    # 1) Recibe plan_code (y opcional plan_id/service_id) + email.
+    # 2) Resuelve usuario (logueado, existente o registro rapido).
+    # 3) Llama a api_cobranza /payments/init.
+    # 4) Redirige al checkout_url de Stripe.
     plan_code = request.GET.get("plan") if request.method == "GET" else request.POST.get("plan")
-    if not plan_code:
-        return HttpResponse("Falta el plan.", status=400)
-
     plan_id = request.GET.get("plan_id") if request.method == "GET" else request.POST.get("plan_id")
     service_id = request.GET.get("service_id") if request.method == "GET" else request.POST.get("service_id")
+    mode = (request.GET.get("mode") if request.method == "GET" else request.POST.get("mode") or "").strip().lower()
+    force_guest = mode == "guest"
+    if not plan_code and not (plan_id and service_id):
+        return HttpResponse("Falta el plan (plan) o los IDs (plan_id y service_id).", status=400)
 
     email = (request.GET.get("email") if request.method == "GET" else request.POST.get("email") or "").strip()
 
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and not force_guest:
         # Usuario autenticado: usar su cuenta para asociar el pago.
         user = request.user
     else:
@@ -440,25 +445,28 @@ def checkout_start(request):
                 return HttpResponse("Falta el correo.", status=400)
 
             user = User.objects.filter(email=email).first()
-            if user:
-                # Si existe, redirige a login para que inicie sesión.
-                login_url = reverse("iniciarsesion")
-                next_url = f"/checkout/start/?{urlencode({'plan': plan_code, 'email': email})}"
-                return redirect(f"{login_url}?{urlencode({'next': next_url})}")
+            if not user:
+                # Si no existe, pedir contraseña y confirmación.
+                return render(
+                    request,
+                    "console/checkout_register.html",
+                    {
+                        "plan": plan_code,
+                        "plan_id": plan_id,
+                        "service_id": service_id,
+                        "mode": mode,
+                        "email": email,
+                    },
+                )
 
-            # Si no existe, pedir contraseña y confirmación.
-            return render(
-                request,
-                "console/checkout_register.html",
-                {"plan": plan_code, "email": email},
-            )
-
-    # URL del servicio de cobranza (API FastAPI).
+    # URL base de billing service (FastAPI).
     api_base = getattr(settings, "COBRANZA_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 
     try:
-        # Llamada server-to-server para crear la sesión de Stripe.
-        payload = {"user_id": user.id, "plan_code": plan_code}
+        # Llamada server-to-server para evitar exponer llaves de Stripe al frontend.
+        payload = {"user_id": user.id}
+        if plan_code:
+            payload["plan_code"] = plan_code
         if plan_id:
             payload["plan_id"] = plan_id
         if service_id:
@@ -484,11 +492,14 @@ def checkout_start(request):
     if not checkout_url:
         return HttpResponse("Checkout URL no disponible.", status=502)
 
-    # Redirección final al Checkout de Stripe.
+    # El navegador sale de Django y entra al checkout hospedado por Stripe.
     return redirect(checkout_url)
 
 
 def checkout_success(request):
+    # Pagina de retorno de Stripe.
+    # Si trae session_id, hacemos confirm fallback hacia billing para activar
+    # suscripcion aunque el webhook principal se retrase.
     session_id = request.GET.get("session_id")
     if session_id:
         api_base = getattr(settings, "COBRANZA_API_BASE", "http://127.0.0.1:8080").rstrip("/")
@@ -507,18 +518,16 @@ def checkout_success(request):
         except Exception:
             logger.warning("Confirm fallback error")
 
-    # Placeholder simple para éxito (puede reemplazarse por template).
-    return HttpResponse("Pago completado. Revisa tu correo para activar tu acceso.")
+    return render(request, "console/checkout_success.html")
 
 
 def checkout_cancel(request):
-    # Placeholder simple para cancelación (puede reemplazarse por template).
-    return HttpResponse("Pago cancelado. Si necesitas ayuda, contáctanos.")
+    return render(request, "console/checkout_cancel.html")
 
 
 
 def _resolve_service_and_plan(plan_code):
-    # Mapea plan_code (Stripe) a Service/Plan internos de Console.
+    # Mapea plan_code (billing/Stripe) a Service y Plan del catalogo Django.
     plan_code = (plan_code or "").strip().lower()
     if not plan_code:
         return None, None
@@ -682,14 +691,17 @@ def _resolve_service_and_plan_by_ids(service_id, plan_id):
 #         }
 #     )
 def checkout_complete(request):
-    # Webhook interno: crea/actualiza User_Service al completar pago en Stripe.
+    # Webhook interno desde api_cobranza.
+    # Este es el paso final donde se crea/actualiza User_Service en Django.
     token = request.headers.get("X-Webhook-Token", "")
     if settings.COBRANZA_WEBHOOK_SECRET and token != settings.COBRANZA_WEBHOOK_SECRET:
+        logger.warning("checkout_complete unauthorized token")
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
     except ValueError:
+        logger.warning("checkout_complete invalid json")
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     user_id = payload.get("user_id")
@@ -709,15 +721,26 @@ def checkout_complete(request):
     def _err(msg, code):
         return JsonResponse({"error": msg}, status=code)
 
+    # Intento 1: resolver por IDs explicitos enviados desde Hugo (service_id/plan_id).
+    resolved_by_ids = False
     if plan_id and service_id:
         servicio, plan, service_plan = _resolve_service_and_plan_by_ids(service_id, plan_id)
-        if not servicio:
-            return _err("Service not found for service_id", 404)
-        if not plan:
-            return _err("Plan not found for plan_id", 404)
-        if not service_plan:
-            return _err("Service_Plan not active for service_id/plan_id", 404)
-    else:
+        if servicio and plan and service_plan:
+            resolved_by_ids = True
+        else:
+            logger.warning(
+                "checkout_complete fallback a plan_code: user_id=%s service_id=%s plan_id=%s plan_code=%s",
+                user_id,
+                service_id,
+                plan_id,
+                plan_code,
+            )
+
+    # Intento 2 (fallback): resolver por plan_code para no perder la activacion
+    # cuando los IDs de frontend no coinciden con los IDs reales en Django.
+    if not resolved_by_ids:
+        if not plan_code:
+            return _err("Service/Plan not resolved by ids and plan_code missing", 404)
         servicio, plan = _resolve_service_and_plan(plan_code)
         if not servicio:
             return _err("Service not found for plan_code", 404)
@@ -730,6 +753,7 @@ def checkout_complete(request):
         if not service_plan:
             return _err("Service_Plan not active for plan_code", 404)
 
+    # Datos de activacion para User_Service (alta o actualizacion).
     defaults = {
         "idPlan": plan,
         "idServicePlan": service_plan,
@@ -737,6 +761,7 @@ def checkout_complete(request):
         "aceptarTerminos": True,
     }
 
+    # Un registro por usuario+servicio (unique_together en el modelo).
     user_service, created = User_Service.objects.get_or_create(
         idUser=usuario,
         idService=servicio,

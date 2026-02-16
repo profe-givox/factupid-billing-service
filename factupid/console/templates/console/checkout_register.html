@@ -8,6 +8,9 @@
   <form method="post" action="/checkout/start/">
     {% csrf_token %}
     <input type="hidden" name="plan" value="{{ plan }}">
+    <input type="hidden" name="plan_id" value="{{ plan_id }}">
+    <input type="hidden" name="service_id" value="{{ service_id }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
     <input type="hidden" name="email" value="{{ email }}">
 
     <div style="margin-bottom: 12px;">
