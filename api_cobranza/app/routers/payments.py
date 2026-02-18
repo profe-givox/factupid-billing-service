@@ -47,6 +47,9 @@ def init_subscription(
     # 2) Se crea Subscription interna en estado pending.
     # 3) Se crea Checkout Session de Stripe (payment/subscription).
     # 4) Stripe redirige al usuario; luego webhook/fallback confirma y activa.
+    # Ver caller Django: factupid/console/views.py:401
+    # Ver creación de sesión Stripe: api_cobranza/app/services/stripe_service.py:16
+    # Ver webhook Stripe (activación): api_cobranza/app/routers/webhooks.py:20
 
     # 1) Resolver plan de cobro dentro de billing.
     # Nota: plan_code es la llave estable entre sistemas; plan_id es fallback local.
@@ -117,6 +120,7 @@ def init_subscription(
 
     # 4) Plan gratuito: no depende de webhook de Stripe; se activa inmediatamente
     # y se notifica a Django para crear/actualizar User_Service.
+    # Ver receptor Django del alta final: factupid/console/views.py:693
     if plan.billing_type == "one_time" and plan.price == 0:
         subscription.status = "active"
         subscription.start_date = subscription.start_date or subscription.created_at.date()
@@ -153,6 +157,7 @@ def confirm_checkout(data: CheckoutConfirmRequest):
     """
     # Este endpoint cubre escenarios donde el webhook de Stripe no llega a tiempo.
     # Django envia session_id al volver de Stripe y aqui forzamos la confirmacion.
+    # Ver view de retorno en Django: factupid/console/views.py:499
     stripe.api_key = settings.STRIPE_SECRET_KEY
     try:
         session = stripe.checkout.Session.retrieve(data.session_id)

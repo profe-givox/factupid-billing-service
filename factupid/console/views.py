@@ -404,6 +404,9 @@ def checkout_start(request):
     # 2) Resuelve usuario (logueado, existente o registro rapido).
     # 3) Llama a api_cobranza /payments/init.
     # 4) Redirige al checkout_url de Stripe.
+    # Ver landing/modal (Hugo): factupid-com/content/_index.md:90
+    # Ver formulario de registro: factupid/console/templates/console/checkout_register.html:1
+    # Ver endpoint billing init: api_cobranza/app/routers/payments.py:38
     plan_code = request.GET.get("plan") if request.method == "GET" else request.POST.get("plan")
     plan_id = request.GET.get("plan_id") if request.method == "GET" else request.POST.get("plan_id")
     service_id = request.GET.get("service_id") if request.method == "GET" else request.POST.get("service_id")
@@ -500,6 +503,8 @@ def checkout_success(request):
     # Pagina de retorno de Stripe.
     # Si trae session_id, hacemos confirm fallback hacia billing para activar
     # suscripcion aunque el webhook principal se retrase.
+    # Ver plantilla success: factupid/console/templates/console/checkout_success.html:1
+    # Ver fallback confirm: api_cobranza/app/routers/payments.py:149
     session_id = request.GET.get("session_id")
     if session_id:
         api_base = getattr(settings, "COBRANZA_API_BASE", "http://127.0.0.1:8080").rstrip("/")
@@ -522,12 +527,14 @@ def checkout_success(request):
 
 
 def checkout_cancel(request):
+    # Ver plantilla cancel: factupid/console/templates/console/checkout_cancel.html:1
     return render(request, "console/checkout_cancel.html")
 
 
 
 def _resolve_service_and_plan(plan_code):
     # Mapea plan_code (billing/Stripe) a Service y Plan del catalogo Django.
+    # Ver origen de plan_code (metadata Stripe): api_cobranza/app/routers/webhooks.py:105
     plan_code = (plan_code or "").strip().lower()
     if not plan_code:
         return None, None
@@ -693,6 +700,9 @@ def _resolve_service_and_plan_by_ids(service_id, plan_id):
 def checkout_complete(request):
     # Webhook interno desde api_cobranza.
     # Este es el paso final donde se crea/actualiza User_Service en Django.
+    # Ver emisor de webhook interno: api_cobranza/app/routers/webhooks.py:435
+    # Ver ruta Django: factupid/factupid/urls.py:34
+    # Ver modelo final persistido: factupid/console/models.py:142
     token = request.headers.get("X-Webhook-Token", "")
     if settings.COBRANZA_WEBHOOK_SECRET and token != settings.COBRANZA_WEBHOOK_SECRET:
         logger.warning("checkout_complete unauthorized token")

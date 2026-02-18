@@ -25,6 +25,7 @@ async def stripe_webhook(
     # - checkout.session.completed -> activar suscripcion y notificar a Django
     # - payment_intent.succeeded  -> registrar pago
     # - customer.subscription.deleted -> marcar cancelacion
+    # Ver ruta de retorno success en Django: factupid/console/views.py:499
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
@@ -102,6 +103,7 @@ def handle_checkout_completed(session_data: dict):
         # Datos para sincronizar en Django (/checkout/complete):
         # plan_code es la referencia estable; plan_id/service_id ayudan a resolver
         # exactamente el Service_Plan de Console cuando coinciden.
+        # Ver lógica de resolución final: factupid/console/views.py:693
         plan_code = session_data.get("metadata", {}).get("plan_code")
         user_id = session_data.get("metadata", {}).get("user_id")
         plan_id = session_data.get("metadata", {}).get("plan_id")
@@ -442,6 +444,7 @@ def notify_main_app(
 ) -> None:
     # Notifica a Django para crear/actualizar User_Service al completar cobro.
     # Endpoint destino: {MAIN_APP_BASE}/checkout/complete/
+    # Ver endpoint receptor: factupid/console/views.py:693
     try:
         import httpx
     except ModuleNotFoundError:
