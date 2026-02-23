@@ -38,14 +38,20 @@ async def stripe_webhook(
         handle_checkout_completed(event["data"]["object"])
 
     #Pago único
-    if event["type"] == "payment_intent.succeeded":
+    elif event["type"] == "payment_intent.succeeded":
         handle_one_time_payment(event["data"]["object"], event)
-
+    # Pago suscripción exitoso
     elif event["type"] == "invoice.payment_succeeded":
         handle_subscription_payment(event["data"]["object"], event)
-
+    # Cancelación
     elif event["type"] == "customer.subscription.deleted":
         handle_subscription_deleted(event["data"]["object"])
+    # FALLO DE PAGO (renovación)
+    elif event["type"] == "invoice.payment_failed":
+        handle_invoice_payment_failed(event["data"]["object"], event)
+    # Cambio de estado de suscripción
+    elif event["type"] == "customer.subscription.updated":
+        handle_subscription_updated(event["data"]["object"])
 
     return {"status": "ok"}
 
@@ -413,3 +419,94 @@ def handle_subscription_deleted(data: dict):
 
 #         db.add(subscription)
 #         db.commit()
+
+def handle_invoice_payment_failed(invoice: dict, event: dict):
+    from app.db.session import engine
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+    from datetime import datetime, timezone
+
+    print("\n========== STRIPE PAYMENT FAILED ==========")
+
+    stripe_sub_id = (
+        invoice.get("subscription")
+        or invoice.get("parent", {})
+                .get("subscription_details", {})
+                .get("subscription")
+    )
+    billing_reason = invoice.get("billing_reason")
+    invoice_id = invoice.get("id")
+
+    print("invoice_id:", invoice_id)
+    print("billing_reason:", billing_reason)
+    print("stripe_subscription_id:", stripe_sub_id)
+
+    # Solo procesar renovaciones automáticas
+    if billing_reason != "subscription_cycle":
+        print("EXIT: no es renovación")
+        return
+    
+    if not stripe_sub_id:
+        print("EXIT: invoice sin subscription")
+        return
+
+    with Session(engine) as db:
+        subscription = db.exec(
+            select(Subscription).where(
+                Subscription.stripe_subscription_id == stripe_sub_id
+            )
+        ).first()
+
+        if not subscription:
+            print("WARN: Subscription no encontrada en BD")
+            return
+
+        # Stripe enviará customer.subscription.updated con el estado real
+
+        print(
+            f"Intento de cobro fallido registrado para subscription {subscription.id}"
+        )
+        # Registrar un Payment fallido opcional
+
+
+def handle_subscription_updated(data: dict):
+    from app.db.session import engine
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+    from datetime import datetime, timezone
+
+    print("\n========== STRIPE SUBSCRIPTION UPDATED ==========")
+
+    stripe_sub_id = data.get("id")
+    stripe_status = data.get("status")
+
+    cancel_at_period_end = data.get("cancel_at_period_end", False)
+    canceled_at = data.get("canceled_at")
+
+    print("stripe_subscription_id:", stripe_sub_id)
+    print("stripe_status:", stripe_status)
+    print("cancel_at_period_end:", cancel_at_period_end)
+
+    with Session(engine) as db:
+        subscription = db.exec(
+            select(Subscription).where(
+                Subscription.stripe_subscription_id == stripe_sub_id
+            )
+        ).first()
+
+        if not subscription:
+            print("WARN: Subscription no encontrada")
+            return
+
+        subscription.status = stripe_status
+        subscription.cancel_at_period_end = cancel_at_period_end
+        
+        if canceled_at:
+            datetime.fromtimestamp(canceled_at, timezone.utc)
+
+        db.add(subscription)
+        db.commit()
+
+        print(
+            f"Subscription {subscription.id} actualizada a estado {subscription.status}"
+        )
