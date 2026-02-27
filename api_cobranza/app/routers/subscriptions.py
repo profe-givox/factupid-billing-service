@@ -6,6 +6,9 @@ from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.services.stripe_service import create_subscription_checkout_session
 
+from app.services.subscription_service import obtener_subscription
+from app.services.access_service import puede_acceder
+
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 
@@ -49,3 +52,20 @@ def start_subscription(
             "checkout_url": session.url,
             "subscription_id": subscription.id,
         }
+
+@router.get("/test-access/{user_id}")
+def test_access(user_id: int):
+
+    subscription = obtener_subscription(user_id)
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="No subscription")
+
+    acceso = puede_acceder(subscription)
+
+    return {
+        "user_id": user_id,
+        "status": subscription.status,
+        "end_date": subscription.end_date,
+        "puede_acceder": acceso
+    }

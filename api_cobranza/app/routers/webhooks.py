@@ -502,7 +502,9 @@ def handle_subscription_updated(data: dict):
         subscription.cancel_at_period_end = cancel_at_period_end
         
         if canceled_at:
-            datetime.fromtimestamp(canceled_at, timezone.utc)
+            subscription.canceled_at = datetime.fromtimestamp(
+                canceled_at, timezone.utc
+            )
 
         db.add(subscription)
         db.commit()
