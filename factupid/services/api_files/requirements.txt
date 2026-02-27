@@ -1,5 +1,0 @@
-fastapi
-uvicorn
-python-multipart
-boto3           # luego lo usamos para MinIO
-psycopg2-binary # PostgreSQL
