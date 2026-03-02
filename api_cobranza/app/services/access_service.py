@@ -16,16 +16,27 @@ def puede_acceder(subscription) -> bool:
     - paused → acceso bloqueado
     """
 
+    from datetime import date
+
+def puede_acceder(subscription) -> bool:
     if not subscription:
         return False
 
     estado = subscription.status
 
-    if estado in ["active", "trialing", "past_due"]:
+    # Estados activos
+    if estado in ["active", "trialing"]:
         return True
 
+    # Stripe intentando cobrar
+    if estado == "past_due":
+        return True
+
+    # Cancelada pero aún dentro del periodo pagado
     if estado == "canceled":
-        if subscription.end_date and subscription.end_date >= date.today():
-            return True
+        if subscription.cancel_at_period_end:
+            if subscription.end_date and subscription.end_date >= date.today():
+                return True
+        return False
 
     return False

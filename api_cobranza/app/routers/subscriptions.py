@@ -131,5 +131,7 @@ def test_access(user_id: int):
         "user_id": user_id,
         "status": subscription.status,
         "end_date": subscription.end_date,
+        "canceled_at": subscription.canceled_at,
+        "cancel_at_period_end": subscription.cancel_at_period_end,
         "puede_acceder": acceso
     }
