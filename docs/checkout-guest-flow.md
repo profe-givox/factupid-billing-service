@@ -57,7 +57,7 @@ Comportamiento:
 
 En settings de Django:
 
-- `COBRANZA_API_BASE` (default: `http://127.0.0.1:8080`)
+- `COBRANZA_API_BASE` (default: `http://192.168.54.71:8080`)
 
 En settings de la API de cobranza:
 

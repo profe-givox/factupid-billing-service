@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
 
     # Main app webhook (Django)
-    MAIN_APP_BASE: str = "http://127.0.0.1:8000"
+    MAIN_APP_BASE: str = "http://192.168.54.22:8000"
     MAIN_APP_WEBHOOK_SECRET: str = ""
 
     model_config = SettingsConfigDict(
