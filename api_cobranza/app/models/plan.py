@@ -40,6 +40,12 @@ class Plan(SQLModel, table=True):
         default="one_time",
         description="Tipo de cobro: one_time | subscription"
     )
+    
+    stripe_product_id: Optional[str] = Field(
+        default=None, 
+        index=True,
+        description="Product ID de Stripe (solo si es subscription)"
+    )
 
     # (solo para SaaS)
     stripe_price_id: Optional[str] = Field(

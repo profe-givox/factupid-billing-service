@@ -32,6 +32,17 @@ def seed_plans():
             "interval": "month",
             "billing_type": "subscription",
             "stripe_price_id": "price_1SpxPwL5PT8hTeNFOHIRI88j",
+            "stripe_product_id": "prod_TnYWxFv5DzAgln",
+        },
+        {
+            "code": "ENT",
+            "name": "Enterprise",
+            "price": 290,
+            "currency": "MXN",
+            "interval": "month",
+            "billing_type": "subscription",
+            "stripe_price_id": "price_1SpxWfL5PT8hTeNFZg83bi74",
+            "stripe_product_id": "prod_TnYdJmtcXdyENp",
         },
     ]
 

@@ -9,6 +9,24 @@ class PlanBase(BaseModel):
     currency: str
     interval: Optional[str] = None
 
+class PlanCreate(BaseModel):
+    code: str
+    name: str
+    price: float
+    currency: str = "MXN"
+    interval: Optional[str] = None
+    billing_type: str
+    
+class PlanRegister(BaseModel):
+    code: str
+    name: str
+    price: int
+    currency: str = "MXN"
+    interval: Optional[str] = None
+    billing_type: str
+
+    stripe_product_id: str
+    stripe_price_id: str
 
 class PlanRead(PlanBase):
     """
