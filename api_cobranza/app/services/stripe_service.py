@@ -113,3 +113,26 @@ def create_subscription_checkout_session(
     )
 
     return session
+
+def change_subscription_plan(
+    stripe_subscription_id: str,
+    new_price_id: str,
+    upgrade: bool
+):
+
+    behavior = "always_invoice" if upgrade else "create_prorations"
+
+    subscription = stripe.Subscription.retrieve(
+        stripe_subscription_id
+    )
+
+    item_id = subscription["items"]["data"][0]["id"]
+
+    return stripe.Subscription.modify(
+        stripe_subscription_id,
+        items=[{
+            "id": item_id,
+            "price": new_price_id
+        }],
+        proration_behavior=behavior
+    )
