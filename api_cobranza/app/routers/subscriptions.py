@@ -41,6 +41,14 @@ def start_subscription(
 
         if existing:
             print("Reutilizando suscripción existente:", existing)
+            
+            # Actualizar plan si cambió
+            if existing.plan_id != plan.id:
+                existing.plan_id = plan.id
+                db.add(existing)
+                db.commit()
+                db.refresh(existing)
+        
             # Reutilizar suscripción
             session = create_subscription_checkout_session(
                 stripe_price_id=plan.stripe_price_id,
