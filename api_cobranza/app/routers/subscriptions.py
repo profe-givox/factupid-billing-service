@@ -30,6 +30,21 @@ def start_subscription(
 
         if not plan or not plan.stripe_price_id:
             raise HTTPException(status_code=400, detail="Plan no valido")
+        
+        # Verificar si ya tiene suscripción activa
+        active = db.exec(
+            select(Subscription).where(
+                Subscription.user_id == user_id,
+                Subscription.status == "active"
+            )
+        ).first()
+
+        if active:
+            raise HTTPException(
+                400,
+                "El usuario ya tiene una suscripción activa"
+            )
+
 
         # Buscar suscripción pendiente reutilizable
         existing = db.exec(
