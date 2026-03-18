@@ -472,6 +472,7 @@ def handle_invoice_payment_failed(invoice: dict, event: dict):
 def handle_subscription_updated(data: dict):
     from app.db.session import engine
     from app.models.subscription import Subscription
+    from app.models.plan import Plan
     from sqlmodel import Session, select
     from datetime import datetime, timezone
 
@@ -486,6 +487,15 @@ def handle_subscription_updated(data: dict):
     print("stripe_subscription_id:", stripe_sub_id)
     print("stripe_status:", stripe_status)
     print("cancel_at_period_end:", cancel_at_period_end)
+    
+    # Obtener price actual (CLAVE)
+    items = data.get("items", {}).get("data", [])
+    if not items:
+        print("No hay items en la suscripción")
+        return
+
+    current_price_id = items[0]["price"]["id"]
+    print("current_price_id:", current_price_id)
 
     with Session(engine) as db:
         subscription = db.exec(
@@ -498,9 +508,24 @@ def handle_subscription_updated(data: dict):
             print("WARN: Subscription no encontrada")
             return
 
+        # Buscar plan en la BD
+        new_plan = db.exec(
+            select(Plan).where(
+                Plan.stripe_price_id == current_price_id
+            )
+        ).first()
+
+        if not new_plan:
+            print("WARN: Plan no encontrado para price_id:", current_price_id)
+        else:
+            if subscription.plan_id != new_plan.id:
+                print(f"Plan cambiado: {subscription.plan_id} → {new_plan.id}")
+                subscription.plan_id = new_plan.id
+
+        # -------- STATUS --------
         subscription.status = stripe_status
         subscription.cancel_at_period_end = cancel_at_period_end
-        
+
         if canceled_at:
             subscription.canceled_at = datetime.fromtimestamp(
                 canceled_at, timezone.utc
@@ -509,6 +534,4 @@ def handle_subscription_updated(data: dict):
         db.add(subscription)
         db.commit()
 
-        print(
-            f"Subscription {subscription.id} actualizada a estado {subscription.status}"
-        )
+        print(f"Subscription {subscription.id} sincronizada correctamente")

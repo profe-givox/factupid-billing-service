@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from sqlmodel import Session, select
 
@@ -203,21 +205,89 @@ def change_plan(
 
         # detectar upgrade o downgrade
         upgrade = new_plan.price > current_plan.price
+        downgrade = new_plan.price < current_plan.price
 
-        updated = change_subscription_plan(
-            stripe_subscription_id=subscription.stripe_subscription_id,
-            new_price_id=new_plan.stripe_price_id,
-            upgrade=upgrade
+        stripe_sub = stripe.Subscription.retrieve(
+            subscription.stripe_subscription_id
         )
 
+        item_id = stripe_sub["items"]["data"][0]["id"]
+
+        # -------------------------
+        # UPGRADE → inmediato
+        # -------------------------
+        if upgrade:
+
+            updated = stripe.Subscription.modify(
+                subscription.stripe_subscription_id,
+                items=[{
+                    "id": item_id,
+                    "price": new_plan.stripe_price_id
+                }],
+                proration_behavior="always_invoice"
+            )
+
+            return {
+                "message": "Upgrade aplicado inmediatamente",
+                "type": "upgrade",
+                "stripe_status": updated["status"]
+            }
+
+        # Actualizar la base de datos después de modificar Stripe
         subscription.plan_id = new_plan.id
         db.add(subscription)
         db.commit()
 
-        return {
-            "message": "Plan actualizado correctamente",
-            "stripe_status": updated["status"]
-        }
+        # -------------------------
+        # DOWNGRADE → programado
+        # -------------------------
+        if downgrade:
+
+            # updated = stripe.Subscription.modify(
+            #     subscription.stripe_subscription_id,
+            #     pending_update={
+            #         "items": [{
+            #             "price": new_plan.stripe_price_id
+            #         }]
+            #     }
+            # )
+            
+            updated = stripe.Subscription.modify(
+                subscription.stripe_subscription_id,
+                items=[{
+                    "id": item_id,
+                    "price": new_plan.stripe_price_id
+                }],
+                proration_behavior="none",
+                billing_cycle_anchor="unchanged"
+            )
+
+            return {
+                "message": "Downgrade programado para el próximo ciclo",
+                "type": "downgrade",
+                "stripe_status": updated["status"]
+            }
+
+        # Actualizar la base de datos después de modificar Stripe
+        subscription.plan_id = new_plan.id
+        db.add(subscription)
+        db.commit()
+        # upgrade = new_plan.price > current_plan.price
+
+        # updated = change_subscription_plan(
+        #     stripe_subscription_id=subscription.stripe_subscription_id,
+        #     new_price_id=new_plan.stripe_price_id,
+        #     upgrade=upgrade
+        # )
+
+        # subscription.plan_id = new_plan.id
+        # db.add(subscription)
+        # db.commit()
+
+        # return {
+        #     "message": "Plan actualizado correctamente",
+        #     "stripe_status": updated["status"]
+        # }
 
 
 # @router.post("/preview-plan-change")
@@ -295,17 +365,54 @@ def preview_plan_change(
 
         if not new_plan:
             raise HTTPException(400, "Plan no valido")
+        
+        if subscription.plan_id == new_plan.id:
+            raise HTTPException(
+                status_code=400,
+                detail="El usuario ya tiene ese plan"
+            )
 
         current_plan = db.get(Plan, subscription.plan_id)
 
         upgrade = new_plan.price > current_plan.price
         downgrade = new_plan.price < current_plan.price
+        
+        if not upgrade and not downgrade:
+            raise HTTPException(
+                status_code=400,
+                detail="El plan es equivalente"
+            )
 
         behavior = "always_invoice" if upgrade else "create_prorations"
 
         stripe_sub = stripe.Subscription.retrieve(
             subscription.stripe_subscription_id
         )
+        
+        # print("Stripe Subscription:", stripe_sub)
+
+        effective_date = datetime.fromtimestamp(
+            stripe_sub["items"]["data"][0]["current_period_end"]
+        ).date()
+
+        # -------------------------
+        # DOWNGRADE
+        # -------------------------
+        if downgrade:
+
+            return {
+                "change_type": "downgrade",
+                "current_plan": current_plan.code,
+                "new_plan": new_plan.code,
+                "effective_date": effective_date,
+                "amount_due_now": 0,
+                "currency": stripe_sub["currency"],
+                "message": f"Tu nuevo plan comenzará el {effective_date}"
+            }
+
+        # -------------------------
+        # UPGRADE
+        # -------------------------
 
         item_id = stripe_sub["items"]["data"][0]["id"]
 
@@ -317,7 +424,7 @@ def preview_plan_change(
                     "id": item_id,
                     "price": new_plan.stripe_price_id
                 }],
-                "proration_behavior": behavior
+                "proration_behavior": "always_invoice"
             }
         )
 
@@ -327,11 +434,11 @@ def preview_plan_change(
             details.append({
                 "description": line.description,
                 "amount": line.amount / 100,
-                "proration": line.parent.subscription_item_details.proration,
+                "proration": line.parent.subscription_item_details.proration
             })
 
         return {
-            "change_type": "upgrade" if upgrade else "downgrade",
+            "change_type": "upgrade",
             "current_plan": current_plan.code,
             "new_plan": new_plan.code,
             "amount_due_now": (preview.amount_due or 0) / 100,
