@@ -518,9 +518,32 @@ def handle_subscription_updated(data: dict):
         if not new_plan:
             print("WARN: Plan no encontrado para price_id:", current_price_id)
         else:
-            if subscription.plan_id != new_plan.id:
-                print(f"Plan cambiado: {subscription.plan_id} → {new_plan.id}")
-                subscription.plan_id = new_plan.id
+            print(f"Stripe reporta plan_id={new_plan.id}")
+
+            # =========================
+            # CASO 1: NO hay schedule → update normal (upgrade)
+            # =========================
+            if not subscription.stripe_schedule_id:
+
+                if subscription.plan_id != new_plan.id:
+                    print(f"Plan cambiado (inmediato): {subscription.plan_id} → {new_plan.id}")
+                    subscription.plan_id = new_plan.id
+
+            # =========================
+            # CASO 2: HAY schedule → downgrade pendiente
+            # =========================
+            else:
+                print("Schedule activo, verificando si ya se aplicó...")
+
+                # 👉 Si Stripe ya coincide con el nuevo plan
+                if subscription.plan_id != new_plan.id:
+                    print(f"Plan aplicado al final del ciclo: {subscription.plan_id} → {new_plan.id}")
+
+                    subscription.plan_id = new_plan.id
+                    subscription.stripe_schedule_id = None  # limpiar schedule
+
+                else:
+                    print("Cambio aún NO aplicado, se mantiene plan actual en DB")
 
         # -------- STATUS --------
         subscription.status = stripe_status

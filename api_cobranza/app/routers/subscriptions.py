@@ -146,77 +146,48 @@ def start_subscription(
 
 
 @router.post("/change-plan")
-def change_plan(
-    user_id: int,
-    new_plan_code: str,
-):
+def change_plan(user_id: int, new_plan_code: str):
+    from app.db.session import engine
+    from app.models.subscription import Subscription
+    from app.models.plan import Plan
+    from sqlmodel import Session, select
+    import stripe
+
     with Session(engine) as db:
 
+        # Obtener suscripción actual
         subscription = db.exec(
-            select(Subscription).where(
-                Subscription.user_id == user_id
-            )
+            select(Subscription).where(Subscription.user_id == user_id)
         ).first()
 
         if not subscription:
-            raise HTTPException(
-                status_code=400,
-                detail="Subscription no encontrada"
-            )
+            raise HTTPException(404, "Suscripción no encontrada")
 
-        if subscription.status not in ["active", "past_due"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Subscription not modifiable"
-            )
+        # Plan actual
+        current_plan = db.get(Plan, subscription.plan_id)
 
+        # Nuevo plan
         new_plan = db.exec(
-            select(Plan).where(
-                Plan.code == new_plan_code,
-                Plan.is_active == True,
-            )
+            select(Plan).where(Plan.code == new_plan_code)
         ).first()
 
         if not new_plan:
-            raise HTTPException(
-                status_code=400,
-                detail="Plan no valido"
-            )
+            raise HTTPException(400, "Plan inválido")
 
-        if not new_plan.stripe_price_id:
-            raise HTTPException(
-                status_code=400,
-                detail="El plan no tiene stripe_price_id configurado"
-            )
+        if current_plan.id == new_plan.id:
+            return {"message": "Ya está en ese plan"}
 
-        if not subscription.stripe_subscription_id:
-            raise HTTPException(
-                status_code=400,
-                detail="La suscripción no está vinculada a Stripe"
-            )
-    
-        if subscription.plan_id == new_plan.id:
-            raise HTTPException(
-                status_code=400,
-                detail="El usuario ya tiene ese plan"
-            )
-            
-        current_plan = db.get(Plan, subscription.plan_id)
-
-        # detectar upgrade o downgrade
-        upgrade = new_plan.price > current_plan.price
-        downgrade = new_plan.price < current_plan.price
-
+        # Obtener suscripción de Stripe
         stripe_sub = stripe.Subscription.retrieve(
             subscription.stripe_subscription_id
         )
 
         item_id = stripe_sub["items"]["data"][0]["id"]
 
-        # -------------------------
-        # UPGRADE → inmediato
-        # -------------------------
-        if upgrade:
+        # =========================
+        # CASO 1: UPGRADE
+        # =========================
+        if new_plan.price > current_plan.price:
 
             updated = stripe.Subscription.modify(
                 subscription.stripe_subscription_id,
@@ -224,70 +195,70 @@ def change_plan(
                     "id": item_id,
                     "price": new_plan.stripe_price_id
                 }],
-                proration_behavior="always_invoice"
+                proration_behavior="create_prorations"
             )
+
+            # actualizar DB inmediato
+            subscription.plan_id = new_plan.id
+
+            db.add(subscription)
+            db.commit()
 
             return {
                 "message": "Upgrade aplicado inmediatamente",
-                "type": "upgrade",
-                "stripe_status": updated["status"]
+                "type": "upgrade"
             }
 
-        # Actualizar la base de datos después de modificar Stripe
-        subscription.plan_id = new_plan.id
-        db.add(subscription)
-        db.commit()
+        # =========================
+        # CASO 2: DOWNGRADE
+        # =========================
+        else:
 
-        # -------------------------
-        # DOWNGRADE → programado
-        # -------------------------
-        if downgrade:
-
-            # updated = stripe.Subscription.modify(
-            #     subscription.stripe_subscription_id,
-            #     pending_update={
-            #         "items": [{
-            #             "price": new_plan.stripe_price_id
-            #         }]
-            #     }
-            # )
-            
-            updated = stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
-                items=[{
-                    "id": item_id,
-                    "price": new_plan.stripe_price_id
-                }],
-                proration_behavior="none",
-                billing_cycle_anchor="unchanged"
+            # Crear schedule desde suscripción actual
+            schedule = stripe.SubscriptionSchedule.create(
+                from_subscription=subscription.stripe_subscription_id
             )
 
+            # print("Programando downgrade al final del ciclo actual", stripe_sub)
+            
+            item = stripe_sub["items"]["data"][0]
+
+            current_period_start = item["current_period_start"]
+            current_period_end = item["current_period_end"]
+
+            # Configurar fases
+            stripe.SubscriptionSchedule.modify(
+                schedule.id,
+                phases=[
+                    {
+                        "items": [{
+                            "price": current_plan.stripe_price_id,
+                            "quantity": 1
+                        }],
+                        "start_date": current_period_start,
+                        "end_date": current_period_end
+                    },
+                    {
+                        "items": [{
+                            "price": new_plan.stripe_price_id,
+                            "quantity": 1
+                        }],
+                        "start_date": current_period_end
+                    }
+                ]
+            )
+
+            # guardar referencia en DB
+            subscription.stripe_schedule_id = schedule.id
+
+            db.add(subscription)
+            db.commit()
+
             return {
-                "message": "Downgrade programado para el próximo ciclo",
+                "message": "Downgrade programado al final del ciclo",
                 "type": "downgrade",
-                "stripe_status": updated["status"]
+                "effective_date": current_period_end
             }
-
-        # Actualizar la base de datos después de modificar Stripe
-        subscription.plan_id = new_plan.id
-        db.add(subscription)
-        db.commit()
-        # upgrade = new_plan.price > current_plan.price
-
-        # updated = change_subscription_plan(
-        #     stripe_subscription_id=subscription.stripe_subscription_id,
-        #     new_price_id=new_plan.stripe_price_id,
-        #     upgrade=upgrade
-        # )
-
-        # subscription.plan_id = new_plan.id
-        # db.add(subscription)
-        # db.commit()
-
-        # return {
-        #     "message": "Plan actualizado correctamente",
-        #     "stripe_status": updated["status"]
-        # }
 
 
 # @router.post("/preview-plan-change")
