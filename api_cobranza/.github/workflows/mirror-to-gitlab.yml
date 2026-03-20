@@ -1,0 +1,31 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches:
+      - main
+      - imanol
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: ENV_FPID_DEV
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to GitLab mirror (current branch only)
+        run: |
+          git config --global user.name "GitHub Mirror Bot"
+          git config --global user.email "actions@github.com"
+          git remote add gitlab https://iibarra:${{ secrets.GITLAB_TOKEN }}@gitlab.factupid.com:8443/iibarra/factupid-billing-service.git
+          git fetch --prune
+          
+          CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+          echo "Pushing current branch: $CURRENT_BRANCH"
+          
+          git push gitlab $CURRENT_BRANCH --force
+          git push gitlab --tags --force
+
