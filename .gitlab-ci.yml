@@ -5,7 +5,7 @@ stages:
 test_api:
   stage: test
   tags:
-    - paymet
+    - payment
   only:
     - main
   script:
@@ -28,7 +28,7 @@ test_api:
 deploy_api:
   stage: deploy
   tags:
-    - paymet
+    - payment
   only:
     - main
   script:
