@@ -1,0 +1,51 @@
+stages:
+  - test
+  - deploy
+
+test_api:
+  stage: test
+  tags:
+    - paymet
+  only:
+    - main
+  script:
+    - cd "$CI_PROJECT_DIR/api_cobranza"
+    - python3.12 -m venv .venv
+    - source .venv/bin/activate
+    - pip install -r requirements.txt
+
+    # Crear .env para pruebas
+    - echo "=== Creando archivo .env para test ==="
+    - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" > .env
+    - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >> .env
+    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
+    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
+    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
+
+    # Prueba simple de sintaxis
+    - python -m py_compile app/main.py
+
+deploy_api:
+  stage: deploy
+  tags:
+    - paymet
+  only:
+    - main
+  script:
+    - cd /var/factupid-billing-service
+    - git fetch origin
+    - git reset --hard origin/main
+    - cd /var/factupid-billing-service/api_cobranza
+    - source .venv/bin/activate
+    - pip install -r requirements.txt
+
+    # Crear .env para despliegue
+    - echo "=== Creando archivo .env de despliegue ==="
+    - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" > .env
+    - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >> .env
+    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
+    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
+    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
+
+    - sudo systemctl restart factupid-billing
+    - sudo systemctl status factupid-billing --no-pager
