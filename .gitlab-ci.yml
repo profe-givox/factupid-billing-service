@@ -1,5 +1,6 @@
 stages:
   - test
+  - quality
   - deploy
 
 test_api:
