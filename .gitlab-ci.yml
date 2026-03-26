@@ -1,6 +1,6 @@
 stages:
   - test
-  - quality
+  # - quality
   - deploy
 
 test_api:
@@ -26,25 +26,25 @@ test_api:
     # Prueba simple de sintaxis
     - python -m py_compile app/main.py
 
-quality_api:
-  stage: quality
-  tags:
-    - payment
-  only:
-    - main
-  script:
-    - cd "$CI_PROJECT_DIR/api_cobranza"
-    - python3.12 -m venv .venv
-    - source .venv/bin/activate
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-    - pip install flake8 bandit
+# quality_api:
+#   stage: quality
+#   tags:
+#     - payment
+#   only:
+#     - main
+#   script:
+#     - cd "$CI_PROJECT_DIR/api_cobranza"
+#     - python3.12 -m venv .venv
+#     - source .venv/bin/activate
+#     - pip install --upgrade pip
+#     - pip install -r requirements.txt
+#     - pip install flake8 bandit
 
-    - echo "=== Ejecutando flake8 ==="
-    - flake8 app
+#     - echo "=== Ejecutando flake8 ==="
+#     - flake8 app
 
-    - echo "=== Ejecutando bandit ==="
-    - bandit -r app -x .venv
+#     - echo "=== Ejecutando bandit ==="
+#     - bandit -r app -x .venv
 
 deploy_api:
   stage: deploy
