@@ -17,6 +17,7 @@ test_api:
 
     # Crear .env para pruebas
     - echo "=== Creando archivo .env para test ==="
+    - echo "DATABASE_URL=sqlite:///./test.db" > .env
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" > .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >> .env
     - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
@@ -25,6 +26,7 @@ test_api:
 
     # Prueba simple de sintaxis
     - python -m py_compile app/main.py
+    - alembic upgrade head
 
 # quality_api:
 #   stage: quality
@@ -62,11 +64,18 @@ deploy_api:
 
     # Crear .env para despliegue
     - echo "=== Creando archivo .env de despliegue ==="
+    - echo "DATABASE_URL=${DATABASE_URL}" > .env
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" > .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" >> .env
     - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
     - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
     - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
 
-    - sudo systemctl reload factupid-billing
+    - echo "=== Aplicando migraciones ==="
+    - alembic upgrade head
+
+    - echo "=== Ejecutando seed de planes ==="
+    - python -c "from app.db.seed import seed_plans; seed_plans()"
+
+    - sudo systemctl restart factupid-billing
     - sudo systemctl status factupid-billing --no-pager
