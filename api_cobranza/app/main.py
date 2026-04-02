@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from app.routers import plans, payments, webhooks, subscriptions
+from app.routers import plans, payments, webhooks, subscriptions, test_auth
 from app.db.seed import seed_plans
 
 # @asynccontextmanager
@@ -21,6 +21,7 @@ app.include_router(plans.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
 app.include_router(subscriptions.router)
+app.include_router(test_auth.router)
 
     
 @app.get("/health")

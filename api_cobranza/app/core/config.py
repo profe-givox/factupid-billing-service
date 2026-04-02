@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str
+    
+    # JWT
+    JWT_PUBLIC_KEY: str
+    JWT_ALGORITHM: str = "RS256"
+    JWT_ISSUER: str
+    JWT_AUDIENCE: str
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     model_config = SettingsConfigDict(
         env_file=".env",
