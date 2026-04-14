@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     
     # JWT
-    JWT_PUBLIC_KEY: str
+    JWT_PUBLIC_KEY: str | None = None
+    JWT_PUBLIC_KEY_PATH: str | None = None
     JWT_ALGORITHM: str = "RS256"
     JWT_ISSUER: str
     JWT_AUDIENCE: str

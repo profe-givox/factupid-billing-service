@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from jose import jwt, JWTError
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,10 +11,16 @@ logger = logging.getLogger(__name__)
 
 reusable_bearer = HTTPBearer()
 
+def get_public_key() -> str:
+    if settings.JWT_PUBLIC_KEY_PATH:
+        return Path(settings.JWT_PUBLIC_KEY_PATH).read_text().strip()
+    if settings.JWT_PUBLIC_KEY:
+        return settings.JWT_PUBLIC_KEY.replace("\\n", "\n").strip()
+    raise RuntimeError("No hay JWT_PUBLIC_KEY ni JWT_PUBLIC_KEY_PATH configurado")
 
 def verify_token(token: str) -> CurrentUser:
     try:
-        public_key = settings.JWT_PUBLIC_KEY.replace("\\n", "\n").strip()
+        public_key = get_public_key()
 
         payload = jwt.decode(
             token,
