@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
     
+    # Webhook secrets
+    COBRANZA_WEBHOOK_SECRET: str | None = None
+    MAIN_APP_BASE: str | None = None
+    
     # JWT
     JWT_PUBLIC_KEY: str | None = None
     JWT_PUBLIC_KEY_PATH: str | None = None

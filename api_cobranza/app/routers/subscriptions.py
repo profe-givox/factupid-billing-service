@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 
 import stripe
@@ -13,12 +13,19 @@ from app.services.stripe_service import create_subscription_checkout_session, ch
 from app.services.subscription_service import obtener_subscription
 from app.services.access_service import puede_acceder
 
+from app.core.security import get_current_user, require_permission
+from app.core.permissions import Permission
+from app.schemas.user import CurrentUser
+
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 @router.post("/checkout")
 def start_subscription(
     plan_code: str,
     user_id: int,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CREATE_CHECKOUT)
+    ),
 ):
     with Session(engine) as db:
 
@@ -96,6 +103,8 @@ def start_subscription(
             subscription_id=subscription.id,
             user_id=user_id,
         )
+        
+        print("Creando nueva suscripción:", subscription)
 
         return {
             "checkout_url": session.url,

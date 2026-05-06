@@ -1,3 +1,4 @@
+import logging
 import stripe
 from fastapi import APIRouter, Request, HTTPException, status
 from sqlmodel import Session, select
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-
+logger = logging.getLogger(__name__)
 
 @router.post("/stripe")
 async def stripe_webhook(
@@ -55,6 +56,55 @@ async def stripe_webhook(
 
     return {"status": "ok"}
 
+def notify_main_app(
+    *,
+    user_id: int,
+    billing_code: str,
+    subscription_id: int,
+    plan_id: int | None = None,
+    service_id: int | None = None,
+    date_cutoff=None,
+) -> None:
+    import httpx
+
+    base_url = settings.MAIN_APP_BASE.rstrip("/")
+    url = f"{base_url}/checkout/complete/"
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    if settings.COBRANZA_WEBHOOK_SECRET:
+        headers["X-Webhook-Token"] = settings.COBRANZA_WEBHOOK_SECRET
+
+    payload = {
+        "user_id": user_id,
+        "billing_code": billing_code,
+        "plan_code": billing_code,
+        "subscription_id": subscription_id,
+    }
+
+    if date_cutoff:
+        payload["date_cutoff"] = date_cutoff.isoformat()
+
+    if plan_id is not None:
+        payload["plan_id"] = plan_id
+
+    if service_id is not None:
+        payload["service_id"] = service_id
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(url, json=payload, headers=headers)
+            if response.status_code >= 400:
+                logger.warning(
+                    "Main app webhook failed: %s %s",
+                    response.status_code,
+                    response.text,
+                )
+    except Exception as exc:
+        logger.warning("Main app webhook error: %s", exc)
+
 # Checkout activa la suscripción
 # Invoice define el ciclo
 
@@ -62,6 +112,7 @@ def handle_checkout_completed(session_data: dict):
     from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.payment import Payment
+    from app.models.plan import Plan
     from sqlmodel import Session, select
     from datetime import datetime
 
@@ -86,6 +137,32 @@ def handle_checkout_completed(session_data: dict):
 
         db.add(subscription)
         db.commit()
+        
+        db.refresh(subscription)
+
+        metadata = session_data.get("metadata", {}) or {}
+
+        billing_code = (
+            metadata.get("billing_code")
+            or metadata.get("plan_code")
+        )
+
+        user_id = metadata.get("user_id") or subscription.user_id
+
+        if not billing_code:
+            plan = db.get(Plan, subscription.plan_id)
+            billing_code = plan.code if plan else None
+            
+        print(f"Checkout session completed for subscription {subscription.id} (user_id={user_id}, billing_code={billing_code})")
+
+        if billing_code and user_id:
+            notify_main_app(
+                user_id=int(user_id),
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+            )
 
 
 #Pago único
