@@ -49,9 +49,22 @@ def start_subscription(
         ).first()
 
         if active:
+            current_plan = db.get(Plan, active.plan_id)
+
             raise HTTPException(
-                400,
-                "El usuario ya tiene una suscripción activa"
+                status_code=409,
+                detail={
+                    "code": "ACTIVE_SUBSCRIPTION_EXISTS",
+                    "message": "El usuario ya tiene una suscripción activa",
+                    "subscription": {
+                        "id": active.id,
+                        "status": active.status,
+                        "plan_id": active.plan_id,
+                        "plan_code": current_plan.code if current_plan else None,
+                        "plan_name": current_plan.name if current_plan else None,
+                    },
+                    "suggested_action": "CHANGE_PLAN",
+                },
             )
 
 
