@@ -33,3 +33,14 @@ class PlanRead(PlanBase):
     Schema de salida para exponer planes al frontend.
     """
     pass
+
+class PlanUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    price: Optional[float] = None
+    currency: Optional[str] = None
+    interval: Optional[str] = None
+    billing_type: Optional[str] = None
+    stripe_product_id: Optional[str] = None
+    stripe_price_id: Optional[str] = None
+    is_active: Optional[bool] = None

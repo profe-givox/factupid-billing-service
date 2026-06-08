@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 import stripe
 from app.db.session import engine
 from app.models.plan import Plan
-from app.schemas.plan import PlanCreate, PlanRegister
+from app.schemas.plan import PlanCreate, PlanRegister, PlanUpdate
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
@@ -35,7 +35,7 @@ def list_plans(session: Session = Depends(get_session)):
         for plan in plans
     ]
 
-@router.post("/plans/create-stripe")
+@router.post("/create-stripe")
 def create_plan_stripe(plan_data: PlanCreate):
 
     with Session(engine) as session:
@@ -75,7 +75,7 @@ def create_plan_stripe(plan_data: PlanCreate):
 
         return new_plan
     
-@router.post("/plans/register")
+@router.post("/register")
 def register_plan(plan_data: PlanRegister):
 
     with Session(engine) as session:
@@ -109,3 +109,45 @@ def register_plan(plan_data: PlanRegister):
         session.refresh(new_plan)
 
         return new_plan
+    
+@router.patch("/{plan_code}")
+def update_plan_local(
+    plan_code: str,
+    plan_data: PlanUpdate,
+    session: Session = Depends(get_session),
+):
+    """
+    Actualiza un plan únicamente en la base de datos local.
+    No modifica productos ni precios en Stripe.
+    """
+
+    plan = session.exec(
+        select(Plan).where(Plan.code == plan_code)
+    ).first()
+
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    update_data = plan_data.model_dump(exclude_unset=True)
+
+    if "code" in update_data:
+        new_code = update_data["code"]
+
+        existing_code = session.exec(
+            select(Plan).where(Plan.code == new_code)
+        ).first()
+
+        if existing_code and existing_code.id != plan.id:
+            raise HTTPException(
+                status_code=400,
+                detail="New plan code already exists",
+            )
+
+    for field, value in update_data.items():
+        setattr(plan, field, value)
+
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+
+    return plan
