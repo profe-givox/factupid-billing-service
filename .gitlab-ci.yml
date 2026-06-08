@@ -24,6 +24,16 @@ test_api:
     - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
     - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
 
+    - echo "MAIN_APP_BASE=${MAIN_APP_BASE}" >> .env
+    - echo "COBRANZA_WEBHOOK_SECRET=${COBRANZA_WEBHOOK_SECRET}" >> .env
+    
+    # - echo "JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}" >> .env
+    - echo "JWT_PUBLIC_KEY_PATH=/etc/factupid/softhsm/jwt_public.pem" >> .env
+    - echo "JWT_ALGORITHM=${JWT_ALGORITHM}" >> .env
+    - echo "JWT_ISSUER=${JWT_ISSUER}" >> .env
+    - echo "JWT_AUDIENCE=${JWT_AUDIENCE}" >> .env
+    - echo "JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}" >> .env
+
     # Prueba simple de sintaxis
     - python -m py_compile app/main.py
     - alembic upgrade head
@@ -70,6 +80,9 @@ deploy_api:
     - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
     - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
     - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
+
+    - echo "MAIN_APP_BASE=${MAIN_APP_BASE}" >> .env
+    - echo "COBRANZA_WEBHOOK_SECRET=${COBRANZA_WEBHOOK_SECRET}" >> .env
     
     # - echo "JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}" >> .env
     - echo "JWT_PUBLIC_KEY_PATH=/etc/factupid/softhsm/jwt_public.pem" >> .env
