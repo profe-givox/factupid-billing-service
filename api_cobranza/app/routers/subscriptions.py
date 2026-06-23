@@ -168,7 +168,13 @@ def start_subscription(
 
 
 @router.post("/change-plan")
-def change_plan(user_id: int, new_plan_code: str):
+def change_plan(
+    user_id: int,
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
+):
     from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.plan import Plan
@@ -337,7 +343,10 @@ def change_plan(user_id: int, new_plan_code: str):
 @router.post("/preview-plan-change")
 def preview_plan_change(
     user_id: int,
-    new_plan_code: str
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
 ):
     with Session(engine) as db:
 
@@ -441,7 +450,12 @@ def preview_plan_change(
         }
         
 @router.get("/test-access/{user_id}")
-def test_access(user_id: int):
+def test_access(
+    user_id: int,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.VIEW_SUBSCRIPTION)
+    ),
+):
 
     subscription = obtener_subscription(user_id)
 

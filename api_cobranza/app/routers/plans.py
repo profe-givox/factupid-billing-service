@@ -12,6 +12,10 @@ from app.db.session import engine
 from app.models.plan import Plan
 from app.schemas.plan import PlanCreate, PlanRegister, PlanUpdate
 
+from app.core.security import get_current_user, require_permission
+from app.core.permissions import Permission
+from app.schemas.user import CurrentUser
+
 router = APIRouter(prefix="/plans", tags=["plans"])
 
 
@@ -36,7 +40,12 @@ def list_plans(session: Session = Depends(get_session)):
     ]
 
 @router.post("/create-stripe")
-def create_plan_stripe(plan_data: PlanCreate):
+def create_plan_stripe(
+    plan_data: PlanCreate,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.REGISTER_SUBSCRIPTION)
+    ),
+):
 
     with Session(engine) as session:
 
@@ -76,7 +85,12 @@ def create_plan_stripe(plan_data: PlanCreate):
         return new_plan
     
 @router.post("/register")
-def register_plan(plan_data: PlanRegister):
+def register_plan(
+    plan_data: PlanRegister,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.REGISTER_SUBSCRIPTION)
+    ),
+):
 
     with Session(engine) as session:
 
@@ -115,6 +129,9 @@ def update_plan_local(
     plan_code: str,
     plan_data: PlanUpdate,
     session: Session = Depends(get_session),
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.REGISTER_SUBSCRIPTION)
+    ),
 ):
     """
     Actualiza un plan únicamente en la base de datos local.

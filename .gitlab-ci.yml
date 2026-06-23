@@ -20,7 +20,7 @@ test_api:
     - echo "DATABASE_URL=sqlite:///./test.db" > .env
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY_DEV}" > .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY_DEV}" >> .env
-    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
+    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET_DEV}" >> .env
     - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
     - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
 
@@ -77,7 +77,7 @@ deploy_api:
     - echo "DATABASE_URL=${DATABASE_URL_DEV}" > .env
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY_DEV}" >> .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY_DEV}" >> .env
-    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}" >> .env
+    - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET_DEV}" >> .env
     - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
     - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
 
