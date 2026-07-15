@@ -249,6 +249,15 @@ def handle_checkout_completed(session_data: dict):
             )
             return
 
+        existing_payment = db.exec(
+            select(Payment).where(
+                Payment.provider_payment_id == checkout_session_id
+            )
+        ).first()
+        
+        if existing_payment:
+            logger.info("Checkout session %s ya procesada, ignorando duplicado", checkout_session_id)
+            return
         # Activar suscripción
         subscription.status = "active"
         subscription.stripe_subscription_id = stripe_subscription_id
@@ -405,7 +414,11 @@ def handle_subscription_payment(invoice: dict, event: dict):
             return
         
         # 3 FECHAS REALES DESDE STRIPE (AQUÍ)
-        period = invoice["lines"]["data"][0]["period"]
+        try:
+            period = invoice["lines"]["data"][0]["period"]
+        except (KeyError, IndexError) as exc:
+            logger.warning("Invoice %s sin period data válida: %s", invoice_id, exc)
+            return
 
         subscription.start_date = datetime.fromtimestamp(
             period["start"], tz=timezone.utc
