@@ -227,10 +227,10 @@ def change_plan(
             )
 
             # actualizar DB inmediato
-            subscription.plan_id = new_plan.id
+            # subscription.plan_id = new_plan.id
 
-            db.add(subscription)
-            db.commit()
+            # db.add(subscription)
+            # db.commit()
 
             return {
                 "message": "Upgrade aplicado inmediatamente",

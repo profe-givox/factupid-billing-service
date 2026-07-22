@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from sqlmodel import Session, select
 from app.db.session import engine
 from app.models.payment import WebhookNotificationQueue
-from app.routers.webhooks import notify_main_app
+from app.routers.webhooks import notify_main_app, notify_subscription_event
 
 
 def process_pending_notifications(max_items: int = 10) -> dict:
@@ -22,14 +22,31 @@ def process_pending_notifications(max_items: int = 10) -> dict:
         for item in pending:
             stats["processed"] += 1
             try:
-                success = notify_main_app(
-                    user_id=item.user_id,
-                    billing_code=item.billing_code,
-                    subscription_id=item.subscription_id,
-                    plan_id=item.plan_id,
-                    service_id=item.service_id,
-                    date_cutoff=item.date_cutoff,
-                )
+                # Routing por event_type:
+                # - checkout_completed → notify_main_app() (endpoint legacy /checkout/complete/)
+                # - cualquier otro → notify_subscription_event() (endpoint /subscription/sync/)
+                if item.event_type == "checkout_completed":
+                    success = notify_main_app(
+                        user_id=item.user_id,
+                        billing_code=item.billing_code,
+                        subscription_id=item.subscription_id,
+                        plan_id=item.plan_id,
+                        service_id=item.service_id,
+                        date_cutoff=item.date_cutoff,
+                    )
+                else:
+                    # Reconstruir payload desde los campos de la cola si no hay payload guardado
+                    payload = item.payload or {}
+                    success = notify_subscription_event(
+                        event_type=item.event_type,
+                        user_id=item.user_id,
+                        billing_code=item.billing_code,
+                        subscription_id=item.subscription_id,
+                        plan_id=item.plan_id,
+                        service_id=item.service_id,
+                        date_cutoff=item.date_cutoff,
+                        full_payload=payload,
+                    )
 
                 if success:
                     item.status = "completed"

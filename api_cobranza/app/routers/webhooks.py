@@ -16,6 +16,35 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 logger = logging.getLogger(__name__)
 
+def _resolve_billing_code_for_subscription(db, subscription, fallback_billing_code=None):
+    """
+    Resuelve el billing_code que se enviará a Django.
+
+    Prioridad:
+    1. Código recibido desde metadata/evento, si existe.
+    2. Código del plan asociado a subscription.plan_id.
+    3. Cadena vacía si no se pudo resolver.
+    """
+    if fallback_billing_code:
+        value = str(fallback_billing_code).strip()
+        if value:
+            return value
+
+    if not subscription or not getattr(subscription, "plan_id", None):
+        return ""
+
+    from app.models.plan import Plan
+
+    plan = db.get(Plan, subscription.plan_id)
+    if not plan:
+        return ""
+
+    return (
+        getattr(plan, "code", None)
+        or getattr(plan, "billing_code", None)
+        or ""
+    )
+
 @router.post("/stripe")
 async def stripe_webhook(
     request: Request,
@@ -67,24 +96,30 @@ def _save_failed_notification(
     service_id: int | None = None,
     date_cutoff=None,
     last_error: str | None = None,
+    event_type: str = "checkout_completed",
+    full_payload: dict | None = None,
 ) -> None:
     """Guarda una notificacion fallida en la cola de reintentos."""
     try:
         with Session(engine) as db:
-            payload = {
+            payload = full_payload or {
                 "user_id": user_id,
                 "billing_code": billing_code,
                 "plan_code": billing_code,
                 "subscription_id": subscription_id,
             }
             if plan_id is not None:
-                payload["plan_id"] = plan_id
+                payload.setdefault("plan_id", plan_id)
             if service_id is not None:
-                payload["service_id"] = service_id
+                payload.setdefault("service_id", service_id)
             if date_cutoff:
-                payload["date_cutoff"] = date_cutoff.isoformat()
+                payload.setdefault(
+                    "date_cutoff",
+                    date_cutoff.isoformat() if hasattr(date_cutoff, "isoformat") else str(date_cutoff),
+                )
 
             queue_item = WebhookNotificationQueue(
+                event_type=event_type,
                 subscription_id=subscription_id,
                 user_id=user_id,
                 billing_code=billing_code,
@@ -205,6 +240,141 @@ def notify_main_app(
     )
 
     return False
+
+
+def notify_subscription_event(
+    *,
+    event_type: str,
+    user_id: int,
+    billing_code: str,
+    subscription_id: int,
+    plan_id: int | None = None,
+    service_id: int | None = None,
+    date_cutoff=None,
+    period_start=None,
+    period_end=None,
+    canceled_at=None,
+    cancel_at_period_end: bool | None = None,
+    stripe_subscription_id: str | None = None,
+    full_payload: dict | None = None,
+) -> bool:
+    """
+    Notifica a Django (MAIN_APP_BASE/subscription/sync/) de eventos de ciclo
+    de vida de suscripciones (renewed, canceled, past_due, plan_changed, etc.).
+    Reintenta hasta 3 veces con backoff exponencial (2s, 4s, 8s).
+    Si todos los reintentos fallan, guarda en WebhookNotificationQueue.
+    Retorna True si la notificacion fue exitosa, False en caso contrario.
+    """
+    import httpx
+
+    base_url = settings.MAIN_APP_BASE
+    if not base_url:
+        logger.error("MAIN_APP_BASE no configurado, no se puede notificar a Django")
+        return False
+
+    base_url = base_url.rstrip("/")
+    url = f"{base_url}/subscription/sync/"
+
+    headers = {"Content-Type": "application/json"}
+    if settings.COBRANZA_WEBHOOK_SECRET:
+        headers["X-Webhook-Token"] = settings.COBRANZA_WEBHOOK_SECRET
+    else:
+        logger.warning("COBRANZA_WEBHOOK_SECRET no configurado, se envia sin token")
+
+    # Construir payload completo para Django
+    payload = full_payload or {
+        "event_type": event_type,
+        "user_id": user_id,
+        "billing_code": billing_code,
+        "subscription_id": subscription_id,
+    }
+
+    # Asegurar campos obligatorios en el payload
+    payload.setdefault("event_type", event_type)
+    payload.setdefault("user_id", user_id)
+    payload.setdefault("billing_code", billing_code)
+
+    if plan_id is not None:
+        payload["plan_id"] = plan_id
+    if service_id is not None:
+        payload["service_id"] = service_id
+    if date_cutoff:
+        payload["date_cutoff"] = (
+            date_cutoff.isoformat() if hasattr(date_cutoff, "isoformat") else str(date_cutoff)
+        )
+    if period_start:
+        payload["period_start"] = (
+            period_start.isoformat() if hasattr(period_start, "isoformat") else str(period_start)
+        )
+    if period_end:
+        payload["period_end"] = (
+            period_end.isoformat() if hasattr(period_end, "isoformat") else str(period_end)
+        )
+    if canceled_at:
+        payload["canceled_at"] = (
+            canceled_at.isoformat() if hasattr(canceled_at, "isoformat") else str(canceled_at)
+        )
+    if cancel_at_period_end is not None:
+        payload["cancel_at_period_end"] = cancel_at_period_end
+    if stripe_subscription_id:
+        payload["stripe_subscription_id"] = stripe_subscription_id
+
+    max_retries = 3
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=10) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code < 400:
+                    logger.info(
+                        "Notificacion %s a Django exitosa para subscription %s",
+                        event_type, subscription_id,
+                    )
+                    return True
+
+                last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+                logger.warning(
+                    "Intento %d/%d - subscription_sync fallo (%s): %s",
+                    attempt + 1, max_retries, event_type, last_error,
+                )
+
+        except httpx.TimeoutException:
+            last_error = "Timeout"
+            logger.warning(
+                "Intento %d/%d - Timeout notificando %s a Django",
+                attempt + 1, max_retries, event_type,
+            )
+        except Exception as exc:
+            last_error = str(exc)
+            logger.warning(
+                "Intento %d/%d - Error notificando %s a Django: %s",
+                attempt + 1, max_retries, event_type, exc,
+            )
+
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+
+    logger.error(
+        "Todos los reintentos fallaron para notificar %s (subscription %s) a Django. "
+        "Guardando en cola de reintentos.",
+        event_type, subscription_id,
+    )
+
+    _save_failed_notification(
+        user_id=user_id,
+        billing_code=billing_code,
+        subscription_id=subscription_id,
+        plan_id=plan_id,
+        service_id=service_id,
+        date_cutoff=date_cutoff,
+        last_error=last_error,
+        event_type=event_type,
+        full_payload=payload,
+    )
+
+    return False
+
 
 # Checkout activa la suscripción
 # Invoice define el ciclo
@@ -460,6 +630,37 @@ def handle_subscription_payment(invoice: dict, event: dict):
         db.add(payment)
         db.commit()
 
+        # Notificar a Django subscription_renewed SOLO para renovaciones reales
+        # (subscription_create ya fue cubierto por checkout.session.completed)
+        if billing_reason == "subscription_cycle":
+            # Extraer user_id y billing_code del invoice metadata
+            metadata = (
+                invoice.get("parent", {})
+                       .get("subscription_details", {})
+                       .get("metadata", {})
+            )
+            user_id_from_invoice = metadata.get("user_id") or subscription.user_id
+            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+            if not billing_code:
+                print(
+                    f"ERROR: No se pudo resolver billing_code para "
+                    f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+                )
+                return
+            
+            notify_subscription_event(
+                event_type="subscription_renewed",
+                user_id=int(user_id_from_invoice),
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+                period_start=subscription.start_date,
+                period_end=subscription.end_date,
+                stripe_subscription_id=stripe_sub_id,
+            )
+
 
 # #Pago de suscripción version anterior sin distinción de billing_reason
 # def handle_subscription_payment(invoice: dict, event: dict):
@@ -596,10 +797,31 @@ def handle_subscription_deleted(data: dict):
 
         db.add(subscription)
         db.commit()
+        db.refresh(subscription)
 
         print(
             f"OK: Subscription {subscription.id} marcada como CANCELADA "
             f"(user_id={subscription.user_id}, plan_id={subscription.plan_id})"
+        )
+        
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+            )
+            return
+
+        # Notificar a Django subscription_canceled
+        notify_subscription_event(
+            event_type="subscription_canceled",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+            canceled_at=subscription.canceled_at,
+            date_cutoff=subscription.end_date,
         )
 
 # def handle_subscription_deleted(data: dict):
@@ -666,12 +888,33 @@ def handle_invoice_payment_failed(invoice: dict, event: dict):
             print("WARN: Subscription no encontrada en BD")
             return
 
-        # Stripe enviará customer.subscription.updated con el estado real
+        # Actualizar estado a past_due lo antes posible
+        subscription.status = "past_due"
+        db.add(subscription)
+        db.commit()
+        db.refresh(subscription)
 
         print(
-            f"Intento de cobro fallido registrado para subscription {subscription.id}"
+            f"Subscription {subscription.id} marcada como PAST_DUE "
+            f"(user_id={subscription.user_id})"
         )
-        # Registrar un Payment fallido opcional
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+            )
+            return
+
+        # Notificar a Django subscription_past_due
+        notify_subscription_event(
+            event_type="subscription_past_due",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+        )
 
 
 def handle_subscription_updated(data: dict):
@@ -712,6 +955,9 @@ def handle_subscription_updated(data: dict):
             print("WARN: Subscription no encontrada")
             return
 
+        # Guardar plan_id anterior para detectar cambios reales
+        previous_plan_id = subscription.plan_id
+
         # Buscar plan en la BD
         new_plan = db.exec(
             select(Plan).where(
@@ -739,7 +985,6 @@ def handle_subscription_updated(data: dict):
             else:
                 print("Schedule activo, verificando si ya se aplicó...")
 
-                # 👉 Si Stripe ya coincide con el nuevo plan
                 if subscription.plan_id != new_plan.id:
                     print(f"Plan aplicado al final del ciclo: {subscription.plan_id} → {new_plan.id}")
 
@@ -760,5 +1005,50 @@ def handle_subscription_updated(data: dict):
 
         db.add(subscription)
         db.commit()
+        db.refresh(subscription)
 
         print(f"Subscription {subscription.id} sincronizada correctamente")
+
+        # -------- NOTIFICACIONES A DJANGO --------
+
+        # Detectar cambio real de plan (solo si el plan_id realmente cambió)
+        plan_changed = previous_plan_id != subscription.plan_id
+        if plan_changed and new_plan:
+            print(f"Notificando subscription_plan_changed: {previous_plan_id} → {subscription.plan_id}")
+            notify_subscription_event(
+                event_type="subscription_plan_changed",
+                user_id=subscription.user_id,
+                billing_code=new_plan.code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                service_id=None,
+                date_cutoff=subscription.end_date,
+                period_start=subscription.start_date,
+                period_end=subscription.end_date,
+                stripe_subscription_id=stripe_sub_id,
+            )
+
+        # Detectar cancelación programada (cancel_at_period_end se activó)
+        elif cancel_at_period_end:
+            print("Notificando subscription_cancel_scheduled")
+            
+            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+            if not billing_code:
+                print(
+                    f"ERROR: No se pudo resolver billing_code para "
+                    f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+                )
+                return
+            
+            notify_subscription_event(
+                event_type="subscription_cancel_scheduled",
+                user_id=subscription.user_id,
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+                period_end=subscription.end_date,
+                cancel_at_period_end=True,
+                stripe_subscription_id=stripe_sub_id,
+            )

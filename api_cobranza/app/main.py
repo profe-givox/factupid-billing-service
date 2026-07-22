@@ -1,20 +1,32 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from app.routers import plans, payments, webhooks, subscriptions, test_auth
-from app.db.seed import seed_plans
+from sqlmodel import Session, select, func
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Ya no crear tablas aquí
-#     # seed_plans()
-#     yield
-#     # aquí iría lógica de cierre si algún día la necesitas
+from app.routers import plans, payments, webhooks, subscriptions, test_auth
+from app.db.session import engine, get_session
+from app.db.seed import seed_plans
+from app.models.payment import WebhookNotificationQueue
+from app.scheduler import start_scheduler, shutdown_scheduler
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    start_scheduler(interval_minutes=5)
+    yield
+    # Shutdown
+    shutdown_scheduler()
+
 
 app = FastAPI(
     title="Factupid Billing Service",
     version="0.1.0",
     root_path="/api/pagos",
+    lifespan=lifespan,
 )
 
 
@@ -24,10 +36,42 @@ app.include_router(webhooks.router)
 app.include_router(subscriptions.router)
 app.include_router(test_auth.router)
 
-    
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/queue")
+def health_queue():
+    """Stats de la cola de notificaciones pendientes."""
+    with Session(engine) as db:
+        total = db.exec(select(func.count(WebhookNotificationQueue.id))).one()
+        pending = db.exec(
+            select(func.count(WebhookNotificationQueue.id)).where(
+                WebhookNotificationQueue.status == "pending"
+            )
+        ).one()
+        failed = db.exec(
+            select(func.count(WebhookNotificationQueue.id)).where(
+                WebhookNotificationQueue.status == "failed"
+            )
+        ).one()
+        completed = db.exec(
+            select(func.count(WebhookNotificationQueue.id)).where(
+                WebhookNotificationQueue.status == "completed"
+            )
+        ).one()
+
+    return {
+        "status": "ok",
+        "queue": {
+            "total": total,
+            "pending": pending,
+            "failed": failed,
+            "completed": completed,
+        },
+    }
 
 
 @app.get("/")

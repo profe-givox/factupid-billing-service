@@ -33,10 +33,16 @@ class Payment(SQLModel, table=True):
 class WebhookNotificationQueue(SQLModel, table=True):
     """
     Cola de reintentos para notificaciones fallidas hacia Django (MAIN_APP_BASE).
-    Se crea una entrada cuando notify_main_app() agota sus reintentos.
+    Se crea una entrada cuando notify_main_app() o notify_subscription_event()
+    agotan sus reintentos.
     Un job externo (cron, scheduler) debe procesar los pendientes.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
+    event_type: str = Field(
+        default="checkout_completed",
+        index=True,
+        description="Tipo de evento: checkout_completed, subscription_renewed, subscription_canceled, etc.",
+    )
     subscription_id: int = Field(index=True)
     user_id: int
     billing_code: str
