@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -10,9 +10,27 @@ class Settings(BaseSettings):
     # URLs
     STRIPE_SUCCESS_URL: str
     STRIPE_CANCEL_URL: str
+    
+    # Database
+    DATABASE_URL: str
+    
+    # Webhook secrets
+    COBRANZA_WEBHOOK_SECRET: str | None = None
+    MAIN_APP_BASE: str | None = None
+    
+    # JWT
+    JWT_PUBLIC_KEY: str | None = None
+    JWT_PUBLIC_KEY_PATH: str | None = None
+    JWT_ALGORITHM: str = "RS256"
+    JWT_ISSUER: str
+    JWT_AUDIENCE: str
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 settings = Settings()

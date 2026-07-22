@@ -1,16 +1,20 @@
+import logging
+import time
 import stripe
+from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.db.session import get_session
+from app.db.session import get_session, engine
 from app.models.subscription import Subscription
+from app.models.payment import WebhookNotificationQueue
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-
+logger = logging.getLogger(__name__)
 
 @router.post("/stripe")
 async def stripe_webhook(
@@ -55,13 +59,160 @@ async def stripe_webhook(
 
     return {"status": "ok"}
 
+def _save_failed_notification(
+    user_id: int,
+    billing_code: str,
+    subscription_id: int,
+    plan_id: int | None = None,
+    service_id: int | None = None,
+    date_cutoff=None,
+    last_error: str | None = None,
+) -> None:
+    """Guarda una notificacion fallida en la cola de reintentos."""
+    try:
+        with Session(engine) as db:
+            payload = {
+                "user_id": user_id,
+                "billing_code": billing_code,
+                "plan_code": billing_code,
+                "subscription_id": subscription_id,
+            }
+            if plan_id is not None:
+                payload["plan_id"] = plan_id
+            if service_id is not None:
+                payload["service_id"] = service_id
+            if date_cutoff:
+                payload["date_cutoff"] = date_cutoff.isoformat()
+
+            queue_item = WebhookNotificationQueue(
+                subscription_id=subscription_id,
+                user_id=user_id,
+                billing_code=billing_code,
+                plan_id=plan_id,
+                service_id=service_id,
+                date_cutoff=str(date_cutoff) if date_cutoff else None,
+                payload=payload,
+                status="pending",
+                next_retry_at=datetime.now(timezone.utc),
+                last_error=last_error,
+            )
+            db.add(queue_item)
+            db.commit()
+    except Exception as exc:
+        logger.error("Error guardando notificacion fallida en cola: %s", exc)
+
+
+def notify_main_app(
+    *,
+    user_id: int,
+    billing_code: str,
+    subscription_id: int,
+    plan_id: int | None = None,
+    service_id: int | None = None,
+    date_cutoff=None,
+) -> bool:
+    """
+    Notifica a Django (MAIN_APP_BASE/checkout/complete/) del exito del pago.
+    Reintenta hasta 3 veces con backoff exponencial (2s, 4s, 8s).
+    Si todos los reintentos fallan, guarda en WebhookNotificationQueue.
+    Retorna True si la notificacion fue exitosa, False en caso contrario.
+    """
+    import httpx
+
+    base_url = settings.MAIN_APP_BASE
+    if not base_url:
+        logger.error("MAIN_APP_BASE no configurado, no se puede notificar a Django")
+        return False
+
+    base_url = base_url.rstrip("/")
+    url = f"{base_url}/checkout/complete/"
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    if settings.COBRANZA_WEBHOOK_SECRET:
+        headers["X-Webhook-Token"] = settings.COBRANZA_WEBHOOK_SECRET
+    else:
+        logger.warning("COBRANZA_WEBHOOK_SECRET no configurado, se envia sin token")
+
+    payload = {
+        "user_id": user_id,
+        "billing_code": billing_code,
+        "plan_code": billing_code,
+        "subscription_id": subscription_id,
+    }
+
+    if date_cutoff:
+        payload["date_cutoff"] = date_cutoff.isoformat()
+
+    if plan_id is not None:
+        payload["plan_id"] = plan_id
+
+    if service_id is not None:
+        payload["service_id"] = service_id
+
+    max_retries = 3
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=10) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code < 400:
+                    logger.info(
+                        "Notificacion a Django exitosa para subscription %s",
+                        subscription_id,
+                    )
+                    return True
+
+                last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+                logger.warning(
+                    "Intento %d/%d - Main app webhook fallo: %s",
+                    attempt + 1, max_retries, last_error,
+                )
+
+        except httpx.TimeoutException:
+            last_error = "Timeout"
+            logger.warning(
+                "Intento %d/%d - Timeout notificando a Django",
+                attempt + 1, max_retries,
+            )
+        except Exception as exc:
+            last_error = str(exc)
+            logger.warning(
+                "Intento %d/%d - Error notificando a Django: %s",
+                attempt + 1, max_retries, exc,
+            )
+
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+
+    logger.error(
+        "Todos los reintentos fallaron para notificar subscription %s a Django. "
+        "Guardando en cola de reintentos.",
+        subscription_id,
+    )
+
+    _save_failed_notification(
+        user_id=user_id,
+        billing_code=billing_code,
+        subscription_id=subscription_id,
+        plan_id=plan_id,
+        service_id=service_id,
+        date_cutoff=date_cutoff,
+        last_error=last_error,
+    )
+
+    return False
+
 # Checkout activa la suscripción
 # Invoice define el ciclo
 
 def handle_checkout_completed(session_data: dict):
-    from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.payment import Payment
+    from app.models.plan import Plan
     from sqlmodel import Session, select
     from datetime import datetime
 
@@ -75,22 +226,75 @@ def handle_checkout_completed(session_data: dict):
             return
 
         print("\n========== STRIPE CHECKOUT COMPLETED ==========")
+
+        # =========================================================
+        # Validacion CRITICA: solo activar si realmente pago
+        # =========================================================
+        payment_status = session_data.get("payment_status")
+        session_status = session_data.get("status")
+
+        if payment_status != "paid":
+            logger.warning(
+                "Checkout session %s NO esta pagada (payment_status=%s). "
+                "No se activa subscription %s.",
+                checkout_session_id, payment_status, subscription_id,
+            )
+            return
+
+        if session_status != "complete":
+            logger.warning(
+                "Checkout session %s NO esta completa (status=%s). "
+                "No se activa subscription %s.",
+                checkout_session_id, session_status, subscription_id,
+            )
+            return
+
+        existing_payment = db.exec(
+            select(Payment).where(
+                Payment.provider_payment_id == checkout_session_id
+            )
+        ).first()
+        
+        if existing_payment:
+            logger.info("Checkout session %s ya procesada, ignorando duplicado", checkout_session_id)
+            return
         # Activar suscripción
         subscription.status = "active"
         subscription.stripe_subscription_id = stripe_subscription_id
-        # subscription.start_date = subscription.created_at.date()
-        # subscription.end_date = subscription.start_date.replace(
-        #     month=(subscription.start_date.month % 12) + 1
-        # )
 
 
         db.add(subscription)
         db.commit()
+        
+        db.refresh(subscription)
+
+        metadata = session_data.get("metadata", {}) or {}
+
+        billing_code = (
+            metadata.get("billing_code")
+            or metadata.get("plan_code")
+        )
+
+        user_id = metadata.get("user_id") or subscription.user_id
+
+        if not billing_code:
+            plan = db.get(Plan, subscription.plan_id)
+            billing_code = plan.code if plan else None
+            
+        print(f"Checkout session completed for subscription {subscription.id} (user_id={user_id}, billing_code={billing_code})")
+
+        if billing_code and user_id:
+            notify_main_app(
+                user_id=int(user_id),
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+            )
 
 
 #Pago único
 def handle_one_time_payment(payment_intent: dict, event: dict):
-    from app.db.session import engine
     from app.models.payment import Payment
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
@@ -129,7 +333,6 @@ def handle_subscription_payment(invoice: dict, event: dict):
     - Renovaciones automáticas
     - Último pago antes de cancelación al final del período
     """
-    from app.db.session import engine
     from app.models.payment import Payment
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
@@ -211,7 +414,11 @@ def handle_subscription_payment(invoice: dict, event: dict):
             return
         
         # 3 FECHAS REALES DESDE STRIPE (AQUÍ)
-        period = invoice["lines"]["data"][0]["period"]
+        try:
+            period = invoice["lines"]["data"][0]["period"]
+        except (KeyError, IndexError) as exc:
+            logger.warning("Invoice %s sin period data válida: %s", invoice_id, exc)
+            return
 
         subscription.start_date = datetime.fromtimestamp(
             period["start"], tz=timezone.utc
@@ -358,7 +565,6 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
 
 def handle_subscription_deleted(data: dict):
-    from app.db.session import engine
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
     from datetime import datetime, timezone
@@ -421,7 +627,6 @@ def handle_subscription_deleted(data: dict):
 #         db.commit()
 
 def handle_invoice_payment_failed(invoice: dict, event: dict):
-    from app.db.session import engine
     from app.models.subscription import Subscription
     from sqlmodel import Session, select
     from datetime import datetime, timezone
@@ -470,7 +675,6 @@ def handle_invoice_payment_failed(invoice: dict, event: dict):
 
 
 def handle_subscription_updated(data: dict):
-    from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.plan import Plan
     from sqlmodel import Session, select

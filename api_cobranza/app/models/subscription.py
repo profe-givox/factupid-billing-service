@@ -25,7 +25,7 @@ class Subscription(SQLModel, table=True):
 
     status: str = Field(
         default="pending",
-        description="Estado: pending, active, expired, canceled"
+        description="Estado: pending, active, trialing, past_due, canceled, expired, incomplete"
     )
 
     provider: str = Field(

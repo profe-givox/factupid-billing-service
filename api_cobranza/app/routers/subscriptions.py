@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 
 import stripe
@@ -13,12 +13,19 @@ from app.services.stripe_service import create_subscription_checkout_session, ch
 from app.services.subscription_service import obtener_subscription
 from app.services.access_service import puede_acceder
 
+from app.core.security import get_current_user, require_permission
+from app.core.permissions import Permission
+from app.schemas.user import CurrentUser
+
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 @router.post("/checkout")
 def start_subscription(
     plan_code: str,
     user_id: int,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CREATE_CHECKOUT)
+    ),
 ):
     with Session(engine) as db:
 
@@ -42,9 +49,22 @@ def start_subscription(
         ).first()
 
         if active:
+            current_plan = db.get(Plan, active.plan_id)
+
             raise HTTPException(
-                400,
-                "El usuario ya tiene una suscripción activa"
+                status_code=409,
+                detail={
+                    "code": "ACTIVE_SUBSCRIPTION_EXISTS",
+                    "message": "El usuario ya tiene una suscripción activa",
+                    "subscription": {
+                        "id": active.id,
+                        "status": active.status,
+                        "plan_id": active.plan_id,
+                        "plan_code": current_plan.code if current_plan else None,
+                        "plan_name": current_plan.name if current_plan else None,
+                    },
+                    "suggested_action": "CHANGE_PLAN",
+                },
             )
 
 
@@ -96,6 +116,8 @@ def start_subscription(
             subscription_id=subscription.id,
             user_id=user_id,
         )
+        
+        print("Creando nueva suscripción:", subscription)
 
         return {
             "checkout_url": session.url,
@@ -146,7 +168,13 @@ def start_subscription(
 
 
 @router.post("/change-plan")
-def change_plan(user_id: int, new_plan_code: str):
+def change_plan(
+    user_id: int,
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
+):
     from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.plan import Plan
@@ -315,7 +343,10 @@ def change_plan(user_id: int, new_plan_code: str):
 @router.post("/preview-plan-change")
 def preview_plan_change(
     user_id: int,
-    new_plan_code: str
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
 ):
     with Session(engine) as db:
 
@@ -419,7 +450,12 @@ def preview_plan_change(
         }
         
 @router.get("/test-access/{user_id}")
-def test_access(user_id: int):
+def test_access(
+    user_id: int,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.VIEW_SUBSCRIPTION)
+    ),
+):
 
     subscription = obtener_subscription(user_id)
 
