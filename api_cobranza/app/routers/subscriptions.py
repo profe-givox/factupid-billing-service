@@ -217,24 +217,67 @@ def change_plan(
         # =========================
         if new_plan.price > current_plan.price:
 
-            updated = stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
-                items=[{
-                    "id": item_id,
-                    "price": new_plan.stripe_price_id
-                }],
-                proration_behavior="create_prorations"
-            )
+            try:
+                updated = stripe.Subscription.modify(
+                    subscription.stripe_subscription_id,
+                    items=[{
+                        "id": item_id,
+                        "price": new_plan.stripe_price_id,
+                    }],
+                    proration_behavior="always_invoice",
+                    payment_behavior="pending_if_incomplete",
+                    expand=["latest_invoice.payment_intent"],
+                    metadata={
+                        "subscription_id": str(subscription.id),
+                        "user_id": str(subscription.user_id),
+                        "change_type": "upgrade",
+                        "old_plan_id": str(current_plan.id),
+                        "new_plan_id": str(new_plan.id),
+                        "new_plan_code": new_plan.code,
+                    },
+                )
 
-            # actualizar DB inmediato
-            # subscription.plan_id = new_plan.id
+            except stripe.error.CardError as exc:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "message": "No se pudo cobrar el cambio de plan.",
+                        "stripe_error": str(exc),
+                    },
+                )
 
-            # db.add(subscription)
-            # db.commit()
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+            # No actualizar DB local todavía.
+            # El cambio local debe aplicarse cuando llegue webhook de Stripe:
+            # invoice.payment_succeeded / customer.subscription.updated
+            # y el pago del prorrateo esté confirmado.
+
+            latest_invoice = updated.get("latest_invoice")
+            payment_intent = None
+
+            if latest_invoice and isinstance(latest_invoice, dict):
+                payment_intent = latest_invoice.get("payment_intent")
 
             return {
-                "message": "Upgrade aplicado inmediatamente",
-                "type": "upgrade"
+                "message": "Upgrade iniciado. Stripe intentará cobrar la diferencia inmediatamente.",
+                "type": "upgrade",
+                "stripe_subscription_id": updated["id"],
+                "status": updated.get("status"),
+                "latest_invoice": latest_invoice.get("id") if isinstance(latest_invoice, dict) else latest_invoice,
+                "payment_intent_status": payment_intent.get("status") if isinstance(payment_intent, dict) else None,
+                "requires_action": (
+                    payment_intent.get("status") in ["requires_action", "requires_confirmation"]
+                    if isinstance(payment_intent, dict)
+                    else False
+                ),
             }
 
         # =========================

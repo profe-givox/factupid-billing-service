@@ -555,21 +555,59 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
     with Session(engine) as db:
 
-        # 1 Resolver subscription
+        # 1 Resolver subscription de forma segura
         subscription = None
 
-        if internal_subscription_id:
-            subscription = db.get(Subscription, int(internal_subscription_id))
-
-        if not subscription and stripe_sub_id:
+        if stripe_sub_id:
             subscription = db.exec(
                 select(Subscription).where(
                     Subscription.stripe_subscription_id == stripe_sub_id
                 )
             ).first()
 
+        if not subscription and internal_subscription_id:
+            try:
+                candidate = db.get(Subscription, int(internal_subscription_id))
+            except (TypeError, ValueError):
+                candidate = None
+
+            if candidate:
+                if candidate.stripe_subscription_id and stripe_sub_id:
+                    if candidate.stripe_subscription_id != stripe_sub_id:
+                        logger.warning(
+                            "Evento Stripe ignorado por conflicto: "
+                            "metadata.subscription_id=%s local_stripe_subscription_id=%s "
+                            "stripe_sub_id=%s invoice_id=%s",
+                            internal_subscription_id,
+                            candidate.stripe_subscription_id,
+                            stripe_sub_id,
+                            invoice_id,
+                        )
+                        return
+
+                subscription = candidate
+
         if not subscription:
-            print("EXIT: No se pudo resolver subscription")
+            logger.warning(
+                "EXIT: No se pudo resolver subscription invoice_id=%s stripe_sub_id=%s internal_subscription_id=%s",
+                invoice_id,
+                stripe_sub_id,
+                internal_subscription_id,
+            )
+            return
+
+        if stripe_sub_id and not subscription.stripe_subscription_id:
+            subscription.stripe_subscription_id = stripe_sub_id
+
+        if stripe_sub_id and subscription.stripe_subscription_id != stripe_sub_id:
+            logger.warning(
+                "Evento Stripe ignorado: subscription local id=%s tiene stripe_subscription_id=%s "
+                "pero invoice trae stripe_subscription_id=%s invoice_id=%s",
+                subscription.id,
+                subscription.stripe_subscription_id,
+                stripe_sub_id,
+                invoice_id,
+            )
             return
 
         # 2 Idempotencia
