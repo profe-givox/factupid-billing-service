@@ -26,13 +26,20 @@ def process_pending_notifications(max_items: int = 10) -> dict:
                 # - checkout_completed → notify_main_app() (endpoint legacy /checkout/complete/)
                 # - cualquier otro → notify_subscription_event() (endpoint /subscription/sync/)
                 if item.event_type == "checkout_completed":
+                    # Reconstruir desde payload completo guardado en la cola.
+                    # Esto preserva period_start, period_end, stripe_subscription_id
+                    # y otros campos que se agreguen en el futuro.
+                    payload = item.payload or {}
                     success = notify_main_app(
-                        user_id=item.user_id,
-                        billing_code=item.billing_code,
-                        subscription_id=item.subscription_id,
-                        plan_id=item.plan_id,
-                        service_id=item.service_id,
-                        date_cutoff=item.date_cutoff,
+                        user_id=payload.get("user_id", item.user_id),
+                        billing_code=payload.get("billing_code", item.billing_code),
+                        subscription_id=payload.get("subscription_id", item.subscription_id),
+                        plan_id=payload.get("plan_id", item.plan_id),
+                        service_id=payload.get("service_id", item.service_id),
+                        date_cutoff=payload.get("date_cutoff", item.date_cutoff),
+                        period_start=payload.get("period_start"),
+                        period_end=payload.get("period_end"),
+                        stripe_subscription_id=payload.get("stripe_subscription_id"),
                     )
                 else:
                     # Reconstruir payload desde los campos de la cola si no hay payload guardado

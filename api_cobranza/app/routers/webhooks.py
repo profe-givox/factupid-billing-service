@@ -98,6 +98,9 @@ def _save_failed_notification(
     last_error: str | None = None,
     event_type: str = "checkout_completed",
     full_payload: dict | None = None,
+    period_start=None,
+    period_end=None,
+    stripe_subscription_id: str | None = None,
 ) -> None:
     """Guarda una notificacion fallida en la cola de reintentos."""
     try:
@@ -117,6 +120,20 @@ def _save_failed_notification(
                     "date_cutoff",
                     date_cutoff.isoformat() if hasattr(date_cutoff, "isoformat") else str(date_cutoff),
                 )
+            # Guardar period_start/period_end/stripe_subscription_id
+            # para que se repliquen correctamente desde la cola
+            if period_start:
+                payload.setdefault(
+                    "period_start",
+                    period_start.isoformat() if hasattr(period_start, "isoformat") else str(period_start),
+                )
+            if period_end:
+                payload.setdefault(
+                    "period_end",
+                    period_end.isoformat() if hasattr(period_end, "isoformat") else str(period_end),
+                )
+            if stripe_subscription_id:
+                payload.setdefault("stripe_subscription_id", stripe_subscription_id)
 
             queue_item = WebhookNotificationQueue(
                 event_type=event_type,
@@ -145,6 +162,9 @@ def notify_main_app(
     plan_id: int | None = None,
     service_id: int | None = None,
     date_cutoff=None,
+    period_start=None,
+    period_end=None,
+    stripe_subscription_id: str | None = None,
 ) -> bool:
     """
     Notifica a Django (MAIN_APP_BASE/checkout/complete/) del exito del pago.
@@ -178,17 +198,33 @@ def notify_main_app(
         "subscription_id": subscription_id,
     }
 
-    if date_cutoff:
-        payload["date_cutoff"] = date_cutoff.isoformat()
-
     if plan_id is not None:
         payload["plan_id"] = plan_id
 
     if service_id is not None:
         payload["service_id"] = service_id
 
+    # Enviar period_start/period_end para que Django cree UserTimbreCount
+    # con las fechas reales de Billing/Stripe (no calculadas por mes calendario)
+    if date_cutoff:
+        payload["date_cutoff"] = (
+            date_cutoff.isoformat() if hasattr(date_cutoff, "isoformat") else str(date_cutoff)
+        )
+    if period_start:
+        payload["period_start"] = (
+            period_start.isoformat() if hasattr(period_start, "isoformat") else str(period_start)
+        )
+    if period_end:
+        payload["period_end"] = (
+            period_end.isoformat() if hasattr(period_end, "isoformat") else str(period_end)
+        )
+    if stripe_subscription_id:
+        payload["stripe_subscription_id"] = stripe_subscription_id
+
     max_retries = 3
     last_error = None
+    
+    print(f"Notificando a Django {url} con payload: {payload}")
 
     for attempt in range(max_retries):
         try:
@@ -237,6 +273,9 @@ def notify_main_app(
         service_id=service_id,
         date_cutoff=date_cutoff,
         last_error=last_error,
+        period_start=period_start,
+        period_end=period_end,
+        stripe_subscription_id=stripe_subscription_id,
     )
 
     return False
@@ -453,13 +492,27 @@ def handle_checkout_completed(session_data: dict):
             
         print(f"Checkout session completed for subscription {subscription.id} (user_id={user_id}, billing_code={billing_code})")
 
-        if billing_code and user_id:
+        if billing_code and user_id and subscription.start_date and subscription.end_date:
             notify_main_app(
                 user_id=int(user_id),
                 billing_code=billing_code,
                 subscription_id=subscription.id,
                 plan_id=subscription.plan_id,
                 date_cutoff=subscription.end_date,
+                period_start=subscription.start_date,
+                period_end=subscription.end_date,
+                stripe_subscription_id=stripe_subscription_id,
+            )
+        else:
+            logger.info(
+                "checkout.session.completed no notifica a Django todavía porque faltan fechas. "
+                "subscription_id=%s user_id=%s billing_code=%s start_date=%s end_date=%s. "
+                "La activación final se hará en invoice.payment_succeeded subscription_create.",
+                subscription.id,
+                user_id,
+                billing_code,
+                subscription.start_date,
+                subscription.end_date,
             )
 
 
@@ -670,23 +723,36 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
         # Notificar a Django subscription_renewed SOLO para renovaciones reales
         # (subscription_create ya fue cubierto por checkout.session.completed)
-        if billing_reason == "subscription_cycle":
-            # Extraer user_id y billing_code del invoice metadata
-            metadata = (
-                invoice.get("parent", {})
-                       .get("subscription_details", {})
-                       .get("metadata", {})
-            )
-            user_id_from_invoice = metadata.get("user_id") or subscription.user_id
-            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+        # Extraer user_id y billing_code del invoice metadata
+        metadata = (
+            invoice.get("parent", {})
+                   .get("subscription_details", {})
+                   .get("metadata", {})
+        )
+        user_id_from_invoice = metadata.get("user_id") or subscription.user_id
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
 
-            if not billing_code:
-                print(
-                    f"ERROR: No se pudo resolver billing_code para "
-                    f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
-                )
-                return
-            
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+            )
+            return
+        # Primer pago: activa Django con fechas reales
+        if billing_reason == "subscription_create":
+            notify_main_app(
+                user_id=int(user_id_from_invoice),
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+                period_start=subscription.start_date,
+                period_end=subscription.end_date,
+                stripe_subscription_id=stripe_sub_id,
+            )
+
+        # Renovaciones: sincroniza nueva fecha y timbres
+        elif billing_reason == "subscription_cycle":
             notify_subscription_event(
                 event_type="subscription_renewed",
                 user_id=int(user_id_from_invoice),
