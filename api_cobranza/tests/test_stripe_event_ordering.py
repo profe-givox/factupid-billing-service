@@ -23,6 +23,7 @@ from tests.conftest import (
     _make_checkout_event,
     _make_invoice_event,
 )
+from datetime import date, timedelta
 
 
 class TestOrdenEventosCheckoutLuegoInvoice:
@@ -32,26 +33,38 @@ class TestOrdenEventosCheckoutLuegoInvoice:
         data = seed_plans_and_sub
         sub_id = data["sub_id"]
 
-        # 1) checkout.session.completed
+        # 1) checkout.session.completed — SOLO activa, NO notifica
         event = _make_checkout_event(sub_id, billing_code="CFDI_PRO")
         session_data = event["data"]["object"]
 
         with patch("app.routers.webhooks.engine", test_engine):
             with patch("app.routers.webhooks.notify_main_app") as mock_notify:
                 handle_checkout_completed(session_data)
-                mock_notify.assert_called_once()
+                mock_notify.assert_not_called()
 
         # Verificar que se activó
         with Session(test_engine) as db:
             sub = db.get(Subscription, sub_id)
             assert sub.status == "active"
+            assert sub.stripe_subscription_id is not None
 
-        # 2) invoice.payment_succeeded
-        event_inv = _make_invoice_event(sub_id)
+        # 2) invoice.payment_succeeded con billing_reason="subscription_create"
+        #    → notifica a Django con period_start, period_end y date_cutoff
+        event_inv = _make_invoice_event(sub_id, billing_code="CFDI_PRO")
         invoice = event_inv["data"]["object"]
 
         with patch("app.routers.webhooks.engine", test_engine):
-            handle_subscription_payment(invoice, event_inv)
+            with patch("app.routers.webhooks.notify_main_app") as mock_notify:
+                handle_subscription_payment(invoice, event_inv)
+                mock_notify.assert_called_once()
+                kwargs = mock_notify.call_args[1]
+                assert "period_start" in kwargs
+                assert "period_end" in kwargs
+                assert "date_cutoff" in kwargs
+                assert "stripe_subscription_id" in kwargs
+                assert isinstance(kwargs["period_start"], date)
+                assert isinstance(kwargs["period_end"], date)
+                assert isinstance(kwargs["date_cutoff"], date)
 
         # Verificar que se creó el pago y NO se rompió nada
         with Session(test_engine) as db:
@@ -61,6 +74,8 @@ class TestOrdenEventosCheckoutLuegoInvoice:
             assert len(payments) == 1
             sub = db.get(Subscription, sub_id)
             assert sub.status == "active"
+            assert sub.start_date is not None
+            assert sub.end_date is not None
 
 
 class TestOrdenEventosInvoiceLuegoCheckout:

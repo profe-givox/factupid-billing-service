@@ -25,7 +25,7 @@ class TestCheckoutCompletedDuplicado:
         sub_id = data["sub_id"]
         cs_id = "cs_duplicated_123"
 
-        # Primer evento
+        # Primer evento — checkout SOLO activa, NO notifica
         event1 = _make_checkout_event(
             sub_id, billing_code="CFDI_PRO",
         )
@@ -34,9 +34,15 @@ class TestCheckoutCompletedDuplicado:
         with patch("app.routers.webhooks.engine", test_engine):
             with patch("app.routers.webhooks.notify_main_app") as mock_notify:
                 handle_checkout_completed(event1["data"]["object"])
-                assert mock_notify.call_count == 1
+                assert mock_notify.call_count == 0
 
-        # Segundo evento (duplicado exacto)
+        # Verificar que se activó y guardó stripe_subscription_id
+        with Session(test_engine) as db:
+            sub = db.get(Subscription, sub_id)
+            assert sub.status == "active"
+            assert sub.stripe_subscription_id is not None
+
+        # Segundo evento (duplicado exacto) — no debe romper el estado ni notificar
         event2 = _make_checkout_event(
             sub_id, billing_code="CFDI_PRO",
         )
@@ -45,14 +51,13 @@ class TestCheckoutCompletedDuplicado:
         with patch("app.routers.webhooks.engine", test_engine):
             with patch("app.routers.webhooks.notify_main_app") as mock_notify2:
                 handle_checkout_completed(event2["data"]["object"])
-                # Se llama notify_main_app de nuevo (handler actual no tiene
-                # dedup explícito por cs_id, pero es seguro porque solo setea status=active)
-                assert mock_notify2.call_count == 1
+                assert mock_notify2.call_count == 0
 
         # Estado final: suscripción activa, sin duplicar
         with Session(test_engine) as db:
             sub = db.get(Subscription, sub_id)
             assert sub.status == "active"
+            assert sub.stripe_subscription_id is not None
 
 
 class TestInvoicePaymentSucceededDuplicado:

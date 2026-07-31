@@ -490,7 +490,9 @@ def handle_checkout_completed(session_data: dict):
             plan = db.get(Plan, subscription.plan_id)
             billing_code = plan.code if plan else None
             
-        print(f"Checkout session completed for subscription {subscription.id} (user_id={user_id}, billing_code={billing_code})")
+        # Protección parcial contra duplicados del mismo checkout.session.completed.
+        # La activación final en Django se hace desde invoice.payment_succeeded
+        # cuando ya existen fechas reales de Stripe.
 
         if billing_code and user_id and subscription.start_date and subscription.end_date:
             notify_main_app(
@@ -721,9 +723,9 @@ def handle_subscription_payment(invoice: dict, event: dict):
         db.add(payment)
         db.commit()
 
-        # Notificar a Django subscription_renewed SOLO para renovaciones reales
-        # (subscription_create ya fue cubierto por checkout.session.completed)
-        # Extraer user_id y billing_code del invoice metadata
+        # Notificar a Django según el tipo de pago:
+        # - subscription_create: activación inicial en /checkout/complete/ con fechas reales de Stripe
+        # - subscription_cycle: renovación en /subscription/sync/
         metadata = (
             invoice.get("parent", {})
                    .get("subscription_details", {})

@@ -67,8 +67,12 @@ def test_webhook_checkout_completed_no_pagado_no_activa(client: TestClient):
             mock_notify.assert_not_called()
 
 
-def test_webhook_checkout_completed_pagado_si_notifica(client: TestClient):
-    """checkout.session.completed con payment_status=paid SI debe notificar."""
+def test_webhook_checkout_completed_pagado_sin_fechas_no_notifica(client: TestClient):
+    """
+    checkout.session.completed con payment_status=paid pero sin fechas
+    en la suscripción NO debe notificar a Django.
+    La activación final se hará desde invoice.payment_succeeded.
+    """
     from unittest.mock import patch, MagicMock
     from app.routers import webhooks
     from tests.conftest import test_engine
@@ -76,7 +80,7 @@ def test_webhook_checkout_completed_pagado_si_notifica(client: TestClient):
     from app.models.subscription import Subscription
     from sqlmodel import Session
 
-    # Crear plan y suscripcion en test DB
+    # Crear plan y suscripcion en test DB (sin start_date/end_date)
     with Session(test_engine) as db:
         plan = Plan(
             code="CFDI_PRO",
@@ -137,13 +141,14 @@ def test_webhook_checkout_completed_pagado_si_notifica(client: TestClient):
                     },
                 )
                 assert response.status_code == 200
-                mock_notify.assert_called_once()
+                mock_notify.assert_not_called()
 
-                # Verificar que la suscripcion se activo
+                # Verificar que la suscripcion local sí se activó
                 with Session(test_engine) as db:
                     updated = db.get(Subscription, sub_id)
                     assert updated is not None
                     assert updated.status == "active"
+                    assert updated.stripe_subscription_id == "sub_test_123"
 
 
 def test_webhook_payload_malformado(client: TestClient):
@@ -161,6 +166,69 @@ def test_webhook_payload_malformado(client: TestClient):
             },
         )
         assert response.status_code == 400
+
+
+def test_webhook_invoice_subscription_create_notifica_main_app(client: TestClient):
+    """
+    invoice.payment_succeeded con billing_reason=subscription_create
+    debe notificar a Django /checkout/complete/ con period_start,
+    period_end, date_cutoff y stripe_subscription_id.
+    """
+    from unittest.mock import patch, MagicMock
+    from app.routers import webhooks
+    from tests.conftest import test_engine, _make_invoice_event
+    from app.models.plan import Plan
+    from app.models.subscription import Subscription
+    from sqlmodel import Session
+
+    # Crear plan y suscripcion activa (checkout previo ya la activó)
+    with Session(test_engine) as db:
+        plan = Plan(
+            code="CFDI_PRO", name="Test PRO", price=5000, currency="MXN",
+            interval="month", billing_type="subscription",
+            stripe_price_id="price_test", stripe_product_id="prod_test",
+            is_active=True,
+        )
+        db.add(plan)
+        db.commit()
+        db.refresh(plan)
+
+        sub = Subscription(
+            user_id=1, plan_id=plan.id, status="active", provider="stripe",
+            stripe_subscription_id="sub_test_inv",
+        )
+        db.add(sub)
+        db.commit()
+        sub_id = sub.id
+
+    # Simular invoice.payment_succeeded con subscription_create
+    event_dict = _make_invoice_event(
+        sub_id,
+        billing_code="CFDI_PRO",
+        stripe_sub_id="sub_test_inv",
+    )
+
+    with patch("stripe.Webhook.construct_event", return_value=event_dict):
+        with patch("app.routers.webhooks.notify_main_app") as mock_notify:
+            with patch("app.routers.webhooks.engine", test_engine):
+                response = client.post(
+                    "/api/pagos/webhooks/stripe",
+                    content='{"type": "invoice.payment_succeeded"}',
+                    headers={
+                        "stripe-signature": "t=123,v1=valida",
+                        "Content-Type": "application/json",
+                    },
+                )
+                assert response.status_code == 200
+                mock_notify.assert_called_once()
+
+                kwargs = mock_notify.call_args[1]
+                assert kwargs.get("billing_code") == "CFDI_PRO"
+                assert kwargs.get("subscription_id") == sub_id
+                assert "period_start" in kwargs
+                assert "period_end" in kwargs
+                assert "date_cutoff" in kwargs
+                assert kwargs.get("stripe_subscription_id") == "sub_test_inv"
 
 
 def test_notify_main_app_reintenta_si_falla(client: TestClient):
