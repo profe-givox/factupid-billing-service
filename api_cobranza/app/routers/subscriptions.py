@@ -16,6 +16,12 @@ from app.services.access_service import puede_acceder
 from app.core.security import get_current_user, require_permission
 from app.core.permissions import Permission
 from app.schemas.user import CurrentUser
+from app.schemas.subscription import RegularizePaymentRequest
+from app.services.stripe_service import (
+    create_subscription_checkout_session,
+    change_subscription_plan,
+    create_billing_portal_session,
+)
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -123,6 +129,98 @@ def start_subscription(
             "checkout_url": session.url,
             "subscription_id": subscription.id,
             "reused": False,
+        }
+
+
+@router.post("/regularize-payment")
+def regularize_payment(
+    payload: RegularizePaymentRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CREATE_CHECKOUT)
+    ),
+):
+    """
+    Crea una sesión del portal de cliente de Stripe para que el usuario
+    regularice el pago de una suscripción en estado past_due o unpaid.
+
+    Reglas:
+      - Solo se permite para estados past_due/unpaid.
+      - La suscripción debe pertenecer al user_id indicado.
+      - No modifica el estado de la suscripción: la actualización llega por
+        webhook cuando Stripe procesa el pago.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if subscription.user_id != payload.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="La suscripción no pertenece al usuario",
+            )
+
+        if subscription.status not in ("past_due", "unpaid"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_NOT_PENDING",
+                    "message": (
+                        "Solo se puede regularizar el pago de suscripciones "
+                        "en estado past_due o unpaid"
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        # Obtener stripe_customer_id, recuperándolo de Stripe si hace falta
+        customer_id = subscription.stripe_customer_id
+
+        if not customer_id and subscription.stripe_subscription_id:
+            try:
+                stripe_sub = stripe.Subscription.retrieve(
+                    subscription.stripe_subscription_id
+                )
+                customer_id = stripe_sub.get("customer")
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+        if not customer_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No se encontró el cliente de Stripe para esta suscripción",
+            )
+
+        if not subscription.stripe_customer_id:
+            subscription.stripe_customer_id = customer_id
+            db.add(subscription)
+            db.commit()
+
+        try:
+            session = create_billing_portal_session(
+                customer_id=customer_id,
+                return_url=payload.return_url,
+            )
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        return {
+            "url": session.url,
+            "subscription_id": subscription.id,
+            "status": subscription.status,
         }
 
 # @router.post("/checkout")

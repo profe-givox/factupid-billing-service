@@ -38,6 +38,12 @@ class Subscription(SQLModel, table=True):
         index=True,
         description="ID de la suscripcion en Stripe"
     )
+
+    stripe_customer_id: Optional[str] = Field(
+        default=None,
+        index=True,
+        description="ID del cliente en Stripe (se guarda en checkout y webhooks para el portal de cliente)"
+    )
     
     stripe_schedule_id: Optional[str] = Field(
         default=None,

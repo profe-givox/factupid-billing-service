@@ -471,6 +471,11 @@ def handle_checkout_completed(session_data: dict):
         subscription.status = "active"
         subscription.stripe_subscription_id = stripe_subscription_id
 
+        # Guardar stripe_customer_id si viene en la sesión de checkout
+        customer_id = session_data.get("customer")
+        if customer_id:
+            subscription.stripe_customer_id = customer_id
+
 
         db.add(subscription)
         db.commit()
@@ -653,6 +658,11 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
         if stripe_sub_id and not subscription.stripe_subscription_id:
             subscription.stripe_subscription_id = stripe_sub_id
+
+        # Guardar stripe_customer_id si viene en la factura
+        customer_id = invoice.get("customer")
+        if customer_id and not subscription.stripe_customer_id:
+            subscription.stripe_customer_id = customer_id
 
         if stripe_sub_id and subscription.stripe_subscription_id != stripe_sub_id:
             logger.warning(
@@ -901,6 +911,11 @@ def handle_subscription_deleted(data: dict):
             else datetime.now(timezone.utc)
         )
 
+        # Guardar stripe_customer_id si viene en el evento
+        customer_id = data.get("customer")
+        if customer_id:
+            subscription.stripe_customer_id = customer_id
+
         db.add(subscription)
         db.commit()
         db.refresh(subscription)
@@ -1104,6 +1119,11 @@ def handle_subscription_updated(data: dict):
         subscription.status = stripe_status
         subscription.cancel_at_period_end = cancel_at_period_end
 
+        # Guardar stripe_customer_id si viene en el evento
+        customer_id = data.get("customer")
+        if customer_id and not subscription.stripe_customer_id:
+            subscription.stripe_customer_id = customer_id
+
         if canceled_at:
             subscription.canceled_at = datetime.fromtimestamp(
                 canceled_at, timezone.utc
@@ -1116,6 +1136,32 @@ def handle_subscription_updated(data: dict):
         print(f"Subscription {subscription.id} sincronizada correctamente")
 
         # -------- NOTIFICACIONES A DJANGO --------
+
+        # CASO UNPAID: Stripe agotó los reintentos de cobro. NO es una
+        # cancelación: se notifica para que Django bloquee el timbrado y
+        # muestre la opción de regularizar el pago. No se cancela nada.
+        if stripe_status == "unpaid":
+            print(f"Notificando subscription_unpaid: {subscription.id}")
+            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+            if not billing_code:
+                print(
+                    f"ERROR: No se pudo resolver billing_code para "
+                    f"subscription_id={subscription.id}, plan_id={subscription.plan_id}"
+                )
+                return
+
+            notify_subscription_event(
+                event_type="subscription_unpaid",
+                user_id=subscription.user_id,
+                billing_code=billing_code,
+                subscription_id=subscription.id,
+                plan_id=subscription.plan_id,
+                date_cutoff=subscription.end_date,
+                period_end=subscription.end_date,
+                stripe_subscription_id=stripe_sub_id,
+            )
+            return
 
         # Detectar cambio real de plan (solo si el plan_id realmente cambió)
         plan_changed = previous_plan_id != subscription.plan_id

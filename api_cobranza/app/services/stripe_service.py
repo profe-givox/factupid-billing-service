@@ -136,3 +136,19 @@ def change_subscription_plan(
         }],
         proration_behavior=behavior
     )
+
+
+def create_billing_portal_session(
+    *,
+    customer_id: str,
+    return_url: str,
+) -> stripe.billing_portal.Session:
+    """
+    Crea una sesión del portal de cliente de Stripe para que el usuario
+    pueda regularizar un pago pendiente o actualizar su método de pago.
+    """
+    session = stripe.billing_portal.Session.create(
+        customer=customer_id,
+        return_url=return_url,
+    )
+    return session

@@ -33,3 +33,13 @@ class SubscriptionRead(BaseModel):
     
 class SubscriptionCancel(BaseModel):
     at_period_end: bool = True
+
+
+class RegularizePaymentRequest(BaseModel):
+    """
+    Petición para crear una sesión del portal de cliente de Stripe y
+    regularizar el pago de una suscripción past_due/unpaid.
+    """
+    subscription_id: int
+    user_id: int
+    return_url: str
