@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
@@ -474,7 +474,6 @@ def change_plan(
         require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
     ),
 ):
-    from app.db.session import engine
     from app.models.subscription import Subscription
     from app.models.plan import Plan
     from sqlmodel import Session, select
@@ -484,7 +483,10 @@ def change_plan(
 
         # Obtener suscripción actual
         subscription = db.exec(
-            select(Subscription).where(Subscription.user_id == user_id)
+            select(Subscription).where(
+                Subscription.user_id == user_id, 
+                Subscription.status == "active"
+            )
         ).first()
 
         if not subscription:
@@ -623,6 +625,45 @@ def change_plan(
 
             db.add(subscription)
             db.commit()
+            db.refresh(subscription)
+
+            # Notificar a Django el downgrade programado. Django guarda una
+            # copia visual mínima (plan destino + fecha) para que el aviso no
+            # dependa de que Billing esté disponible. El cambio real se
+            # notifica después con subscription_plan_changed.
+            effective_date = datetime.fromtimestamp(
+                current_period_end, tz=timezone.utc,
+            ).date().isoformat()
+
+            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+            if billing_code:
+                notify_subscription_event(
+                    event_type="subscription_plan_change_scheduled",
+                    user_id=subscription.user_id,
+                    billing_code=billing_code,
+                    subscription_id=subscription.id,
+                    plan_id=subscription.plan_id,
+                    date_cutoff=subscription.end_date,
+                    period_end=subscription.end_date,
+                    stripe_subscription_id=subscription.stripe_subscription_id,
+                    full_payload={
+                        "event_type": "subscription_plan_change_scheduled",
+                        "user_id": subscription.user_id,
+                        "billing_code": billing_code,
+                        "subscription_id": subscription.id,
+                        "plan_id": subscription.plan_id,
+                        "scheduled_billing_code": new_plan.code,
+                        "scheduled_plan_id": new_plan.id,
+                        "effective_date": effective_date,
+                        "change_type": "downgrade",
+                    },
+                )
+            else:
+                print(
+                    f"ERROR: No se pudo resolver billing_code para "
+                    f"subscription_id={subscription.id} al programar downgrade"
+                )
 
             return {
                 "message": "Downgrade programado al final del ciclo",
@@ -694,7 +735,8 @@ def preview_plan_change(
 
         subscription = db.exec(
             select(Subscription).where(
-                Subscription.user_id == user_id
+                Subscription.user_id == user_id,
+                Subscription.status == "active"
             )
         ).first()
 
