@@ -1,8 +1,12 @@
+import logging
+
 import stripe
 from app.core.config import settings
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+logger = logging.getLogger(__name__)
 
 
 def create_checkout_session(
@@ -152,3 +156,78 @@ def create_billing_portal_session(
         return_url=return_url,
     )
     return session
+
+
+def reactivate_stripe_subscription(
+    *,
+    stripe_subscription_id: str,
+) -> stripe.Subscription:
+    """
+    Revierte una cancelación programada en Stripe:
+    pone cancel_at_period_end=False para conservar la suscripción.
+    """
+    return stripe.Subscription.modify(
+        stripe_subscription_id,
+        cancel_at_period_end=False,
+    )
+
+
+def get_schedule_id_for_stripe_subscription(
+    *,
+    stripe_subscription_id: str,
+) -> str | None:
+    """
+    Identifica el SubscriptionSchedule que gestiona una suscripción en Stripe.
+    Retorna el ID del schedule o None si no hay asociado.
+    """
+    if not stripe_subscription_id:
+        return None
+
+    try:
+        subscription = stripe.Subscription.retrieve(stripe_subscription_id)
+    except stripe.error.StripeError as exc:
+        logger.warning(
+            "No se pudo recuperar la suscripción %s para buscar schedule: %s",
+            stripe_subscription_id, exc,
+        )
+        return None
+
+    schedule_id = subscription.get("schedule")
+    return schedule_id if schedule_id else None
+
+
+def release_stripe_schedule_if_possible(
+    *,
+    stripe_schedule_id: str,
+) -> tuple[bool, str | None, str | None]:
+    """
+    Libera un SubscriptionSchedule de Stripe si está activo o not_started.
+
+    Regla de Stripe: para quitar un schedule de una suscripción sin cancelarla
+    hay que llamar release. Si el schedule ya fue liberado, cancelado o
+    completado, release fallaría; en ese caso no se intenta.
+
+    Retorna (released, status, error):
+      - released: True si se llamó release con éxito.
+      - status: estado del schedule (active, not_started, released, completed,
+        canceled) o None si no se pudo recuperar.
+      - error: mensaje si ocurrió un error de Stripe, None en caso contrario.
+    """
+    if not stripe_schedule_id:
+        return False, None, None
+
+    try:
+        schedule = stripe.SubscriptionSchedule.retrieve(stripe_schedule_id)
+    except stripe.error.StripeError as exc:
+        return False, None, str(exc)
+
+    status_value = schedule.get("status")
+
+    if status_value in ("active", "not_started"):
+        try:
+            stripe.SubscriptionSchedule.release(stripe_schedule_id)
+            return True, status_value, None
+        except stripe.error.StripeError as exc:
+            return False, status_value, str(exc)
+
+    return False, status_value, None

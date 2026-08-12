@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.session import get_session, engine
 from app.models.subscription import Subscription
 from app.models.payment import WebhookNotificationQueue
+from app.services.stripe_service import release_stripe_schedule_if_possible
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -1108,6 +1109,37 @@ def handle_subscription_updated(data: dict):
 
                 if subscription.plan_id != new_plan.id:
                     print(f"Plan aplicado al final del ciclo: {subscription.plan_id} → {new_plan.id}")
+
+                    # Liberar el schedule en Stripe: el cambio ya se aplicó y el
+                    # schedule cumplió su función. Dejarlo activo bloquearía
+                    # futuras cancelaciones/modificaciones de la suscripción.
+                    if subscription.stripe_schedule_id:
+                        released, schedule_status, release_error = (
+                            release_stripe_schedule_if_possible(
+                                stripe_schedule_id=subscription.stripe_schedule_id,
+                            )
+                        )
+                        if released:
+                            print(
+                                f"Schedule {subscription.stripe_schedule_id} "
+                                "liberado en Stripe"
+                            )
+                        elif release_error:
+                            logger.warning(
+                                "No se pudo liberar el schedule %s de la "
+                                "suscripción %s: %s",
+                                subscription.stripe_schedule_id,
+                                subscription.id,
+                                release_error,
+                            )
+                        else:
+                            logger.warning(
+                                "Schedule %s de la suscripción %s en estado %s "
+                                "al aplicar el downgrade",
+                                subscription.stripe_schedule_id,
+                                subscription.id,
+                                schedule_status,
+                            )
 
                     subscription.plan_id = new_plan.id
                     subscription.stripe_schedule_id = None  # limpiar schedule

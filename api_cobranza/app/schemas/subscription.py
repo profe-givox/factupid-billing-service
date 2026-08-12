@@ -43,3 +43,10 @@ class RegularizePaymentRequest(BaseModel):
     subscription_id: int
     user_id: int
     return_url: str
+
+
+class SubscriptionIdRequest(BaseModel):
+    """
+    Petición genérica con solo el ID interno de una suscripción.
+    """
+    subscription_id: int

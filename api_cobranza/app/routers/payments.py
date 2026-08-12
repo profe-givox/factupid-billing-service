@@ -1,3 +1,5 @@
+import logging
+
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
@@ -12,7 +14,11 @@ from app.services.stripe_service import create_checkout_session
 from app.schemas.payment import CheckoutSessionResponse
 
 from datetime import datetime
-from app.services.stripe_service import cancel_stripe_subscription
+from app.services.stripe_service import (
+    cancel_stripe_subscription,
+    release_stripe_schedule_if_possible,
+    get_schedule_id_for_stripe_subscription,
+)
 from app.schemas.subscription import SubscriptionCancel
 
 from app.core.security import get_current_user, require_permission
@@ -20,6 +26,8 @@ from app.core.permissions import Permission
 from app.schemas.user import CurrentUser
 
 router = APIRouter(prefix="/payments", tags=["payments"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -115,11 +123,70 @@ def cancel_subscription(
             detail="Suscripción no vinculada a Stripe"
         )
 
-    # 1 Cancelar en Stripe
-    cancel_stripe_subscription(
-        stripe_subscription_id=subscription.stripe_subscription_id,
-        at_period_end=data.at_period_end,
-    )
+    # 1 Liberar un cambio de plan programado que bloquearía la cancelación.
+    #
+    # Si hay un SubscriptionSchedule activo, Stripe rechaza el modify con un
+    # error del tipo "...managed by subscription schedule...". Liberamos el
+    # schedule antes de cancelar para evitarlo.
+    schedule_id = subscription.stripe_schedule_id
+
+    if not schedule_id:
+        # Puede que el schedule exista en Stripe pero no esté registrado localmente
+        schedule_id = get_schedule_id_for_stripe_subscription(
+            stripe_subscription_id=subscription.stripe_subscription_id,
+        )
+
+    if schedule_id:
+        released, schedule_status, release_error = release_stripe_schedule_if_possible(
+            stripe_schedule_id=schedule_id,
+        )
+
+        if released:
+            subscription.stripe_schedule_id = None
+        elif release_error:
+            # No logramos liberarlo; se intentará de nuevo en el flujo de error abajo
+            logger.warning(
+                "No se pudo liberar el schedule %s de la suscripción %s "
+                "antes de cancelar: %s",
+                schedule_id, subscription.id, release_error,
+            )
+        elif schedule_status not in ("released", "completed", "canceled"):
+            logger.warning(
+                "Schedule %s de la suscripción %s en estado %s antes de cancelar",
+                schedule_id, subscription.id, schedule_status,
+            )
+
+    # 1b Cancelar en Stripe
+    try:
+        cancel_stripe_subscription(
+            stripe_subscription_id=subscription.stripe_subscription_id,
+            at_period_end=data.at_period_end,
+        )
+    except stripe.error.StripeError as exc:
+        if "schedule" in str(exc).lower() and schedule_id:
+            # Intento de recuperación: liberar y reintentar la cancelación
+            logger.warning(
+                "Stripe rechazó cancelar la suscripción %s por schedule; "
+                "reintentando tras liberar %s: %s",
+                subscription.id, schedule_id, exc,
+            )
+            released_retry, _, _ = release_stripe_schedule_if_possible(
+                stripe_schedule_id=schedule_id,
+            )
+            if released_retry:
+                subscription.stripe_schedule_id = None
+            cancel_stripe_subscription(
+                stripe_subscription_id=subscription.stripe_subscription_id,
+                at_period_end=data.at_period_end,
+            )
+        else:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
 
     # 2 Actualizar BD
     subscription.cancel_at_period_end = data.at_period_end
@@ -237,4 +304,5 @@ def subscription_status(
         "end_date": str(subscription.end_date) if subscription.end_date else None,
         "cancel_at_period_end": subscription.cancel_at_period_end,
         "canceled_at": str(subscription.canceled_at) if subscription.canceled_at else None,
+        "stripe_schedule_id": subscription.stripe_schedule_id,
     }

@@ -16,11 +16,17 @@ from app.services.access_service import puede_acceder
 from app.core.security import get_current_user, require_permission
 from app.core.permissions import Permission
 from app.schemas.user import CurrentUser
-from app.schemas.subscription import RegularizePaymentRequest
+from app.schemas.subscription import RegularizePaymentRequest, SubscriptionIdRequest
 from app.services.stripe_service import (
     create_subscription_checkout_session,
     change_subscription_plan,
     create_billing_portal_session,
+    reactivate_stripe_subscription,
+    release_stripe_schedule_if_possible,
+)
+from app.routers.webhooks import (
+    _resolve_billing_code_for_subscription,
+    notify_subscription_event,
 )
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
@@ -221,6 +227,201 @@ def regularize_payment(
             "url": session.url,
             "subscription_id": subscription.id,
             "status": subscription.status,
+        }
+
+
+@router.post("/reactivate-cancel-scheduled")
+def reactivate_cancel_scheduled(
+    payload: SubscriptionIdRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CANCEL_SUBSCRIPTION)
+    ),
+):
+    """
+    Revierte una cancelación programada para conservar la suscripción.
+
+    Solo se permite si la suscripción tiene cancel_at_period_end=True o
+    estado cancel_scheduled. Llama a Stripe con cancel_at_period_end=False,
+    actualiza la BD local y notifica a Django (subscription_reactivated).
+
+    No borra información ni reinicia timbres.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if not (
+            subscription.cancel_at_period_end
+            or subscription.status == "cancel_scheduled"
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "NO_CANCEL_SCHEDULED",
+                    "message": (
+                        "La suscripción no tiene una cancelación programada"
+                    ),
+                    "status": subscription.status,
+                    "cancel_at_period_end": subscription.cancel_at_period_end,
+                },
+            )
+
+        if not subscription.stripe_subscription_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Suscripción no vinculada a Stripe",
+            )
+
+        try:
+            reactivate_stripe_subscription(
+                stripe_subscription_id=subscription.stripe_subscription_id,
+            )
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        # Actualizar BD local
+        subscription.cancel_at_period_end = False
+        subscription.status = "active"
+        subscription.canceled_at = None
+
+        db.add(subscription)
+        db.commit()
+        db.refresh(subscription)
+
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}"
+            )
+            return {"status": "ok"}
+
+        notify_subscription_event(
+            event_type="subscription_reactivated",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+            date_cutoff=subscription.end_date,
+            period_start=subscription.start_date,
+            period_end=subscription.end_date,
+            cancel_at_period_end=False,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+        )
+
+        return {
+            "status": "ok",
+            "subscription_id": subscription.id,
+            "subscription_status": "active",
+            "cancel_at_period_end": False,
+        }
+
+
+@router.post("/cancel-scheduled-plan-change")
+def cancel_scheduled_plan_change(
+    payload: SubscriptionIdRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
+):
+    """
+    Cancela un cambio de plan programado (downgrade/upgrade futuro).
+
+    Si existe stripe_schedule_id:
+      - Se recupera el schedule en Stripe.
+      - Si está activo/not_started se libera con release.
+      - Si ya está released/completed/canceled no se falla.
+      - Se limpia stripe_schedule_id local.
+    No cambia el plan actual, no reinicia timbres y no borra información.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if not subscription.stripe_schedule_id:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "NO_SCHEDULED_PLAN_CHANGE",
+                    "message": (
+                        "No hay un cambio de plan programado para esta suscripción"
+                    ),
+                },
+            )
+
+        released, schedule_status, error = release_stripe_schedule_if_possible(
+            stripe_schedule_id=subscription.stripe_schedule_id,
+        )
+
+        # Si Stripe no está disponible o el release falló, no limpiamos el ID
+        # local: el schedule sigue existiendo y bloqueando. Solo se limpia si
+        # se liberó con éxito o si el schedule ya está en estado terminal.
+        if error:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": error,
+                },
+            )
+
+        if not released and schedule_status not in ("released", "completed", "canceled"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SCHEDULE_NOT_RELEASED",
+                    "message": (
+                        "No se pudo liberar el cambio de plan programado "
+                        f"(estado: {schedule_status})"
+                    ),
+                    "schedule_status": schedule_status,
+                },
+            )
+
+        subscription.stripe_schedule_id = None
+        subscription.status = "active"
+
+        db.add(subscription)
+        db.commit()
+        db.refresh(subscription)
+
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}"
+            )
+            return {"status": "ok"}
+
+        notify_subscription_event(
+            event_type="subscription_plan_change_canceled",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+            date_cutoff=subscription.end_date,
+            period_end=subscription.end_date,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+        )
+
+        return {
+            "status": "ok",
+            "subscription_id": subscription.id,
+            "released": released,
+            "schedule_status": schedule_status,
+            "stripe_schedule_id": None,
         }
 
 # @router.post("/checkout")
