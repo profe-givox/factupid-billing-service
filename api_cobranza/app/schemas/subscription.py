@@ -50,3 +50,22 @@ class SubscriptionIdRequest(BaseModel):
     Petición genérica con solo el ID interno de una suscripción.
     """
     subscription_id: int
+
+
+class ReportOverageRequest(BaseModel):
+    """
+    Petición para reportar excedentes de timbres CFDI a Stripe como un
+    invoice item (Fase 7B OnDemand).
+
+    amount se calcula en Billing como total_amount * 100 (centavos).
+    """
+    subscription_id: int
+    user_id: int
+    overage_period_id: int
+    period_start: str
+    period_end: str
+    quantity: int
+    unit_price: float
+    total_amount: float
+    currency: str = "mxn"
+    description: Optional[str] = None

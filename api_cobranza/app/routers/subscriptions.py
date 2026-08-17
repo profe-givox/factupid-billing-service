@@ -16,7 +16,11 @@ from app.services.access_service import puede_acceder
 from app.core.security import get_current_user, require_permission
 from app.core.permissions import Permission
 from app.schemas.user import CurrentUser
-from app.schemas.subscription import RegularizePaymentRequest, SubscriptionIdRequest
+from app.schemas.subscription import (
+    RegularizePaymentRequest,
+    SubscriptionIdRequest,
+    ReportOverageRequest,
+)
 from app.services.stripe_service import (
     create_subscription_checkout_session,
     change_subscription_plan,
@@ -323,6 +327,148 @@ def reactivate_cancel_scheduled(
             "subscription_id": subscription.id,
             "subscription_status": "active",
             "cancel_at_period_end": False,
+        }
+
+
+@router.post("/report-overage")
+def report_overage(
+    payload: ReportOverageRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.REGISTER_SUBSCRIPTION)
+    ),
+):
+    """
+    Reporta excedentes de timbres CFDI (OnDemand) a Stripe como un invoice item.
+
+    Fase 7B: Django calcula el excedente del periodo (CfdiOveragePeriod) y lo
+    envía aquí; Billing lo convierte en un Stripe invoice item del cliente.
+    NO se crea factura inmediata ni se cambia el estado de la suscripción.
+
+    Reglas:
+      - Solo se permite para estados active, cancel_scheduled o canceled.
+      - Se rechaza si la suscripción está past_due o unpaid.
+      - amount = total_amount * 100 (centavos), currency "mxn".
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if subscription.user_id != payload.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="La suscripción no pertenece al usuario",
+            )
+
+        if subscription.status in ("past_due", "unpaid"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_OVERDUE",
+                    "message": (
+                        "No se puede reportar excedentes con un pago pendiente. "
+                        "Regulariza primero la suscripción."
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        if subscription.status not in ("active", "cancel_scheduled", "canceled"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_NOT_BILLABLE",
+                    "message": (
+                        "La suscripción no está en un estado facturable"
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        if payload.quantity <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="quantity debe ser mayor a 0",
+            )
+
+        if payload.total_amount <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="total_amount debe ser mayor a 0",
+            )
+
+        # Obtener stripe_customer_id, recuperándolo de Stripe si hace falta
+        customer_id = subscription.stripe_customer_id
+
+        if not customer_id and subscription.stripe_subscription_id:
+            try:
+                stripe_sub = stripe.Subscription.retrieve(
+                    subscription.stripe_subscription_id
+                )
+                customer_id = stripe_sub.get("customer")
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+        if not customer_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No se encontró el cliente de Stripe para esta suscripción",
+            )
+
+        if not subscription.stripe_customer_id and customer_id:
+            subscription.stripe_customer_id = customer_id
+            db.add(subscription)
+            db.commit()
+
+        amount_cents = int(round(payload.total_amount * 100))
+        currency = (payload.currency or "mxn").lower()
+
+        period_start = str(payload.period_start)[:10]
+        period_end = str(payload.period_end)[:10]
+
+        description = payload.description or (
+            f"{payload.quantity} timbres CFDI excedentes - "
+            f"periodo {period_start} a {period_end}"
+        )
+
+        try:
+            invoice_item = stripe.InvoiceItem.create(
+                customer=customer_id,
+                amount=amount_cents,
+                currency=currency,
+                description=description,
+                metadata={
+                    "factupid_type": "cfdi_overage",
+                    "user_id": str(payload.user_id),
+                    "subscription_id": str(payload.subscription_id),
+                    "overage_period_id": str(payload.overage_period_id),
+                    "period_start": str(payload.period_start),
+                    "period_end": str(payload.period_end),
+                    "quantity": str(payload.quantity),
+                    "unit_price": str(payload.unit_price),
+                },
+            )
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        return {
+            "success": True,
+            "stripe_invoice_item_id": invoice_item.id,
+            "amount": amount_cents,
+            "currency": currency,
         }
 
 

@@ -554,6 +554,162 @@ def handle_one_time_payment(payment_intent: dict, event: dict):
         db.commit()
 
 #Pago de suscripción
+def _is_cfdi_overage_invoice(invoice: dict) -> bool:
+    """
+    Detecta si una factura de Stripe corresponde a un invoice item de
+    excedentes CFDI (OnDemand) creado por /subscriptions/report-overage.
+
+    Stripe puede colocar el metadata en la propia línea
+    (invoice.lines.data[].metadata) o dentro de invoice_item_details.
+    Detecta factupid_type == "cfdi_overage" en cualquiera de las líneas.
+    """
+    if not isinstance(invoice, dict):
+        return False
+
+    lines = (invoice.get("lines") or {}).get("data") or []
+    if not isinstance(lines, list):
+        return False
+
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+
+        line_metadata = line.get("metadata") or {}
+        if isinstance(line_metadata, dict) and (
+            line_metadata.get("factupid_type") == "cfdi_overage"
+        ):
+            return True
+
+        # Metadata del invoice item dentro de invoice_item_details
+        item_details = (
+            line.get("invoice_item_details")
+            or (line.get("parent") or {}).get("invoice_item_details")
+            or {}
+        )
+        if isinstance(item_details, dict):
+            item_metadata = item_details.get("metadata") or {}
+            if isinstance(item_metadata, dict) and (
+                item_metadata.get("factupid_type") == "cfdi_overage"
+            ):
+                return True
+
+    return False
+
+
+def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
+    """
+    Procesa el pago de una factura de excedentes CFDI (OnDemand).
+
+    Reglas (Fase 7B):
+      - NO renueva la suscripción.
+      - NO modifica subscription.start_date / end_date / status.
+      - NO llama notify_subscription_event(subscription_renewed).
+      - NO llama notify_main_app.
+      - Solo registra el Payment (idempotente por invoice_id).
+      - TODO Fase 7C: notificar a Django que el excedente fue cobrado para
+        marcar el CfdiOveragePeriod correspondiente como billed.
+    """
+    from app.models.payment import Payment
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+    from datetime import datetime, timezone
+
+    invoice_id = invoice.get("id")
+    if not invoice_id:
+        logger.warning("handle_cfdi_overage_invoice_paid: invoice sin id")
+        return
+
+    # Resolver la suscripción igual que en pagos normales
+    stripe_sub_id = (
+        invoice.get("parent", {})
+               .get("subscription_details", {})
+               .get("subscription")
+        or invoice.get("lines", {})
+                  .get("data", [{}])[0]
+                  .get("parent", {})
+                  .get("subscription_item_details", {})
+                  .get("subscription")
+    )
+
+    internal_subscription_id = (
+        invoice.get("parent", {})
+               .get("subscription_details", {})
+               .get("metadata", {})
+               .get("subscription_id")
+    )
+
+    with Session(engine) as db:
+        subscription = None
+
+        if stripe_sub_id:
+            subscription = db.exec(
+                select(Subscription).where(
+                    Subscription.stripe_subscription_id == stripe_sub_id
+                )
+            ).first()
+
+        if not subscription and internal_subscription_id:
+            try:
+                subscription = db.get(Subscription, int(internal_subscription_id))
+            except (TypeError, ValueError):
+                subscription = None
+
+        if not subscription:
+            logger.warning(
+                "handle_cfdi_overage_invoice_paid: no se pudo resolver "
+                "subscription invoice_id=%s stripe_sub_id=%s",
+                invoice_id,
+                stripe_sub_id,
+            )
+            return
+
+        # Idempotencia por invoice_id (el modelo Payment no permite
+        # duplicados de provider_payment_id)
+        existing = db.exec(
+            select(Payment).where(
+                Payment.provider_payment_id == invoice_id
+            )
+        ).first()
+
+        if existing:
+            logger.info(
+                "handle_cfdi_overage_invoice_paid: payment ya registrado "
+                "invoice_id=%s",
+                invoice_id,
+            )
+            return
+
+        paid_at_ts = invoice.get("status_transitions", {}).get("paid_at")
+        paid_at = (
+            datetime.fromtimestamp(paid_at_ts, tz=timezone.utc)
+            if paid_at_ts else datetime.now(timezone.utc)
+        )
+
+        payment = Payment(
+            subscription_id=subscription.id,
+            provider="stripe",
+            provider_payment_id=invoice_id,
+            amount=invoice.get("amount_paid", 0),
+            currency=invoice.get("currency", "mxn"),
+            status="succeeded",
+            paid_at=paid_at,
+            raw_event=event,
+        )
+        db.add(payment)
+        db.commit()
+
+        logger.info(
+            "handle_cfdi_overage_invoice_paid: pago de excedentes CFDI "
+            "registrado invoice_id=%s subscription_id=%s amount=%s. "
+            "NO se renueva la suscripción. "
+            "TODO Fase 7C: notificar a Django para marcar CfdiOveragePeriod "
+            "como billed.",
+            invoice_id,
+            subscription.id,
+            invoice.get("amount_paid", 0),
+        )
+
+
 def handle_subscription_payment(invoice: dict, event: dict):
     """
     Este handler se ejecuta AUTOMÁTICAMENTE cuando Stripe envía
@@ -612,6 +768,14 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
     if not invoice_id:
         print("EXIT: invoice_id es None")
+        return
+
+    # Fase 7B: factura de excedentes CFDI (OnDemand). NO es una renovación.
+    # Se procesa por separado para NO renovar la suscripción ni reiniciar
+    # timbres. Esta detección va ANTES de resolver la suscripción y de
+    # cualquier rama de billing_reason.
+    if _is_cfdi_overage_invoice(invoice):
+        handle_cfdi_overage_invoice_paid(invoice, event)
         return
 
     with Session(engine) as db:
