@@ -554,46 +554,116 @@ def handle_one_time_payment(payment_intent: dict, event: dict):
         db.commit()
 
 #Pago de suscripción
-def _is_cfdi_overage_invoice(invoice: dict) -> bool:
-    """
-    Detecta si una factura de Stripe corresponde a un invoice item de
-    excedentes CFDI (OnDemand) creado por /subscriptions/report-overage.
+# ---------------------------------------------------------------------------
+# Helpers para detectar líneas de excedentes vs. líneas de suscripción
+# en facturas de Stripe que pueden ser mixtas (renovación + excedentes).
+# ---------------------------------------------------------------------------
 
-    Stripe puede colocar el metadata en la propia línea
-    (invoice.lines.data[].metadata) o dentro de invoice_item_details.
-    Detecta factupid_type == "cfdi_overage" en cualquiera de las líneas.
+def _is_cfdi_overage_line(line: dict) -> bool:
     """
-    if not isinstance(invoice, dict):
+    Detecta si una línea de factura de Stripe corresponde a un invoice
+    item de excedentes CFDI (OnDemand).
+
+    Busca metadata factupid_type=="cfdi_overage" en:
+    - line.metadata
+    - line.invoice_item_details.metadata
+    - line.parent.invoice_item_details.metadata
+    """
+    if not isinstance(line, dict):
         return False
 
-    lines = (invoice.get("lines") or {}).get("data") or []
-    if not isinstance(lines, list):
-        return False
+    # Buscar en metadata directa de la línea
+    line_metadata = line.get("metadata") or {}
+    if isinstance(line_metadata, dict) and (
+        line_metadata.get("factupid_type") == "cfdi_overage"
+    ):
+        return True
 
-    for line in lines:
-        if not isinstance(line, dict):
-            continue
-
-        line_metadata = line.get("metadata") or {}
-        if isinstance(line_metadata, dict) and (
-            line_metadata.get("factupid_type") == "cfdi_overage"
+    # Buscar en invoice_item_details de la línea
+    item_details = line.get("invoice_item_details") or {}
+    if isinstance(item_details, dict):
+        item_metadata = item_details.get("metadata") or {}
+        if isinstance(item_metadata, dict) and (
+            item_metadata.get("factupid_type") == "cfdi_overage"
         ):
             return True
 
-        # Metadata del invoice item dentro de invoice_item_details
-        item_details = (
-            line.get("invoice_item_details")
-            or (line.get("parent") or {}).get("invoice_item_details")
-            or {}
-        )
-        if isinstance(item_details, dict):
-            item_metadata = item_details.get("metadata") or {}
-            if isinstance(item_metadata, dict) and (
-                item_metadata.get("factupid_type") == "cfdi_overage"
-            ):
-                return True
+    # Buscar en parent.invoice_item_details
+    parent = line.get("parent") or {}
+    parent_item_details = parent.get("invoice_item_details") or {}
+    if isinstance(parent_item_details, dict):
+        parent_metadata = parent_item_details.get("metadata") or {}
+        if isinstance(parent_metadata, dict) and (
+            parent_metadata.get("factupid_type") == "cfdi_overage"
+        ):
+            return True
 
     return False
+
+
+def _get_cfdi_overage_lines(invoice: dict) -> list:
+    """
+    Retorna la lista de líneas de excedentes CFDI en una factura.
+    """
+    if not isinstance(invoice, dict):
+        return []
+
+    lines = (invoice.get("lines") or {}).get("data") or []
+    if not isinstance(lines, list):
+        return []
+
+    return [line for line in lines if _is_cfdi_overage_line(line)]
+
+
+def _is_subscription_line(line: dict) -> bool:
+    """
+    Detecta si una línea de factura es una línea real de suscripción
+    (NO es un invoice item de excedente).
+
+    Una línea se considera de suscripción si:
+    - Tiene parent.subscription_item_details.subscription (línea de suscripción Stripe)
+    - O parent.type == "subscription_line_item"
+    - Y NO es una línea de excedente CFDI.
+    """
+    if not isinstance(line, dict):
+        return False
+
+    # Si es línea de excedente, NO es línea de suscripción
+    if _is_cfdi_overage_line(line):
+        return False
+
+    parent = line.get("parent") or {}
+
+    # Línea con subscription_item_details es de suscripción
+    if isinstance(parent, dict):
+        sub_item_details = parent.get("subscription_item_details") or {}
+        if isinstance(sub_item_details, dict) and sub_item_details.get("subscription"):
+            return True
+
+        # parent.type == "subscription_line_item" (formato Stripe legacy)
+        if parent.get("type") == "subscription_line_item":
+            return True
+
+    return False
+
+
+def _get_subscription_line(invoice: dict) -> dict | None:
+    """
+    Retorna la primera línea real de suscripción de la factura
+    (excluyendo líneas de excedentes CFDI).
+    """
+    if not isinstance(invoice, dict):
+        return None
+
+    lines = (invoice.get("lines") or {}).get("data") or []
+    if not isinstance(lines, list):
+        return None
+
+    for line in lines:
+        if _is_subscription_line(line):
+            return line
+
+    return None
 
 
 def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
@@ -719,6 +789,14 @@ def handle_subscription_payment(invoice: dict, event: dict):
     - Primer pago de suscripción
     - Renovaciones automáticas
     - Último pago antes de cancelación al final del período
+    - Facturas mixtas (renovación + excedentes CFDI)
+
+    Regla para facturas mixtas (Fase 7B fix):
+    - Si la factura tiene SOLO líneas de excedente (sin línea de suscripción):
+      se procesa como excedente puro, NO se renueva la suscripción.
+    - Si la factura tiene una línea de suscripción (con o sin excedentes):
+      se procesa la renovación normalmente. El excedente se registra pero
+      NO bloquea la renovación.
     """
     from app.models.payment import Payment
     from app.models.subscription import Subscription
@@ -744,16 +822,28 @@ def handle_subscription_payment(invoice: dict, event: dict):
         print("Invoice preview ignorada")
         return
 
-    stripe_sub_id = (
-        invoice.get("parent", {})
-               .get("subscription_details", {})
-               .get("subscription")
-        or invoice.get("lines", {})
-                  .get("data", [{}])[0]
-                  .get("parent", {})
-                  .get("subscription_item_details", {})
-                  .get("subscription")
-    )
+    # --- Detectar líneas de excedentes y de suscripción ---
+    overage_lines = _get_cfdi_overage_lines(invoice)
+    subscription_line = _get_subscription_line(invoice)
+
+    # Resolver stripe_sub_id y internal_subscription_id desde la línea
+    # correcta (la de suscripción, NO la de excedente).
+    if subscription_line:
+        stripe_sub_id = (
+            subscription_line.get("parent", {})
+                           .get("subscription_item_details", {})
+                           .get("subscription")
+        )
+    else:
+        stripe_sub_id = (
+            invoice.get("parent", {})
+                   .get("subscription_details", {})
+                   .get("subscription")
+            or (invoice.get("lines", {}).get("data") or [{}])[0]
+                   .get("parent", {})
+                   .get("subscription_item_details", {})
+                   .get("subscription")
+        )
 
     internal_subscription_id = (
         invoice.get("parent", {})
@@ -762,19 +852,13 @@ def handle_subscription_payment(invoice: dict, event: dict):
                .get("subscription_id")
     )
 
-    # print("stripe_sub_id:", stripe_sub_id)
-    # print("internal_subscription_id:", internal_subscription_id)
-    # print("invoice_id:", invoice_id)
-
     if not invoice_id:
         print("EXIT: invoice_id es None")
         return
 
-    # Fase 7B: factura de excedentes CFDI (OnDemand). NO es una renovación.
-    # Se procesa por separado para NO renovar la suscripción ni reiniciar
-    # timbres. Esta detección va ANTES de resolver la suscripción y de
-    # cualquier rama de billing_reason.
-    if _is_cfdi_overage_invoice(invoice):
+    # --- Factura SOLO de excedentes (sin línea de suscripción) ---
+    # NO es una renovación. Se procesa como excedente puro.
+    if overage_lines and not subscription_line:
         handle_cfdi_overage_invoice_paid(invoice, event)
         return
 
@@ -851,11 +935,20 @@ def handle_subscription_payment(invoice: dict, event: dict):
             print("Payment ya existe")
             return
         
-        # 3 FECHAS REALES DESDE STRIPE (AQUÍ)
-        try:
-            period = invoice["lines"]["data"][0]["period"]
-        except (KeyError, IndexError) as exc:
-            logger.warning("Invoice %s sin period data válida: %s", invoice_id, exc)
+        # 3 FECHAS REALES DESDE STRIPE
+        # Usar la línea de suscripción para extraer el periodo, NO la
+        # primera línea (que puede ser un invoice item de excedente).
+        if subscription_line:
+            period = subscription_line.get("period")
+        else:
+            try:
+                period = invoice["lines"]["data"][0]["period"]
+            except (KeyError, IndexError) as exc:
+                logger.warning("Invoice %s sin period data válida: %s", invoice_id, exc)
+                return
+
+        if not period:
+            logger.warning("Invoice %s sin period en subscription_line", invoice_id)
             return
 
         subscription.start_date = datetime.fromtimestamp(
@@ -897,6 +990,16 @@ def handle_subscription_payment(invoice: dict, event: dict):
         db.add(subscription)
         db.add(payment)
         db.commit()
+
+        # Loggear si la factura es mixta (renovación + excedentes)
+        if overage_lines and subscription_line:
+            logger.info(
+                "handle_subscription_payment: factura mixta invoice_id=%s "
+                "tiene %d línea(s) de excedente y línea de suscripción. "
+                "Se procesa la renovación normalmente.",
+                invoice_id,
+                len(overage_lines),
+            )
 
         # Notificar a Django según el tipo de pago:
         # - subscription_create: activación inicial en /checkout/complete/ con fechas reales de Stripe
