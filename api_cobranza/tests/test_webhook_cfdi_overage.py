@@ -1,11 +1,15 @@
-"""Tests Fase 7B: facturas mixtas de Stripe (renovación + excedentes CFDI).
+"""Tests Fase 7B/7C: facturas mixtas de Stripe + excedentes CFDI delta.
 
 Cubre:
 - Factura SOLO de excedentes: NO renueva suscripción.
 - Factura mixta (renovación + excedente): SÍ renueva, usa period de línea de suscripción.
 - Helpers: _is_cfdi_overage_line, _get_cfdi_overage_lines, _is_subscription_line, _get_subscription_line.
 - Facturas normales (sin excedentes) siguen su flujo original.
-- report-overage crea invoice item con metadata factupid_type.
+- report-overage crea invoice item con metadata report_sequence.
+- report-overage trata quantity como delta.
+- cfdi_overage_billed notificado por invoice solo excedente y mixta.
+- Idempotencia de payment duplicado.
+- Metadata de líneas cfdi_overage se extrae correctamente.
 """
 
 import time

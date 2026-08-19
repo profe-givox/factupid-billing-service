@@ -432,10 +432,11 @@ def report_overage(
 
         period_start = str(payload.period_start)[:10]
         period_end = str(payload.period_end)[:10]
+        report_sequence = payload.report_sequence or 0
 
         description = payload.description or (
             f"{payload.quantity} timbres CFDI excedentes - "
-            f"periodo {period_start} a {period_end}"
+            f"lote {report_sequence} - periodo {period_start} a {period_end}"
         )
 
         try:
@@ -453,6 +454,7 @@ def report_overage(
                     "period_end": str(payload.period_end),
                     "quantity": str(payload.quantity),
                     "unit_price": str(payload.unit_price),
+                    "report_sequence": str(report_sequence),
                 },
             )
         except stripe.error.StripeError as exc:

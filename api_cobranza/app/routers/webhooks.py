@@ -1,6 +1,7 @@
 import logging
 import time
 import stripe
+import httpx
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, status
 from sqlmodel import Session, select
@@ -666,18 +667,91 @@ def _get_subscription_line(invoice: dict) -> dict | None:
     return None
 
 
+def _notify_cfdi_overage_billed(
+    *,
+    user_id: int,
+    billing_code: str,
+    subscription_id: int,
+    overage_period_id: int,
+    quantity: int,
+    amount: int,
+    stripe_invoice_item_id: str,
+    stripe_invoice_id: str,
+    report_sequence: int,
+    paid_at,
+):
+    """
+    Notifica a Django que un lote de excedentes CFDI fue cobrado (Fase 7C).
+    Django marcará el CfdiOveragePeriod correspondiente como billed.
+    """
+    base_url = settings.MAIN_APP_BASE
+    if not base_url:
+        logger.error("MAIN_APP_BASE no configurado, no se puede notificar cfdi_overage_billed")
+        return False
+
+    base_url = base_url.rstrip("/")
+    url = f"{base_url}/subscription/sync/"
+
+    headers = {"Content-Type": "application/json"}
+    if settings.COBRANZA_WEBHOOK_SECRET:
+        headers["X-Webhook-Token"] = settings.COBRANZA_WEBHOOK_SECRET
+
+    paid_at_str = (
+        paid_at.isoformat() if hasattr(paid_at, "isoformat") else str(paid_at)
+    )
+
+    payload = {
+        "event_type": "cfdi_overage_billed",
+        "user_id": user_id,
+        "billing_code": billing_code,
+        "subscription_id": subscription_id,
+        "overage_period_id": overage_period_id,
+        "quantity": quantity,
+        "amount": amount,
+        "stripe_invoice_item_id": stripe_invoice_item_id,
+        "stripe_invoice_id": stripe_invoice_id,
+        "report_sequence": report_sequence,
+        "paid_at": paid_at_str,
+    }
+
+    max_retries = 3
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=10) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code < 400:
+                    logger.info(
+                        "cfdi_overage_billed notificado a Django "
+                        "overage_period_id=%s quantity=%s",
+                        overage_period_id, quantity,
+                    )
+                    return True
+                last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+        except httpx.TimeoutException:
+            last_error = "Timeout"
+        except Exception as exc:
+            last_error = str(exc)
+
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+
+    logger.error(
+        "cfdi_overage_billed: todos los reintentos fallaron "
+        "overage_period_id=%s last_error=%s",
+        overage_period_id, last_error,
+    )
+    return False
+
+
 def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
     """
-    Procesa el pago de una factura de excedentes CFDI (OnDemand).
+    Procesa el pago de una factura SOLO de excedentes CFDI (sin línea de
+    suscripción). NO renueva la suscripción.
 
-    Reglas (Fase 7B):
-      - NO renueva la suscripción.
-      - NO modifica subscription.start_date / end_date / status.
-      - NO llama notify_subscription_event(subscription_renewed).
-      - NO llama notify_main_app.
-      - Solo registra el Payment (idempotente por invoice_id).
-      - TODO Fase 7C: notificar a Django que el excedente fue cobrado para
-        marcar el CfdiOveragePeriod correspondiente como billed.
+    Fase 7C: notifica a Django con cfdi_overage_billed para cada línea de
+    excedente, extrayendo la metadata del invoice item de Stripe.
     """
     from app.models.payment import Payment
     from app.models.subscription import Subscription
@@ -733,8 +807,7 @@ def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
             )
             return
 
-        # Idempotencia por invoice_id (el modelo Payment no permite
-        # duplicados de provider_payment_id)
+        # Idempotencia por invoice_id
         existing = db.exec(
             select(Payment).where(
                 Payment.provider_payment_id == invoice_id
@@ -768,15 +841,57 @@ def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
         db.add(payment)
         db.commit()
 
+        # Fase 7C: notificar a Django por cada línea de excedente
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+        overage_lines = _get_cfdi_overage_lines(invoice)
+
+        for line in overage_lines:
+            line_metadata = line.get("metadata") or {}
+            item_details = line.get("invoice_item_details") or {}
+            item_metadata = item_details.get("metadata") or {}
+            parent = line.get("parent") or {}
+            parent_item_details = parent.get("invoice_item_details") or {}
+            parent_metadata = parent_item_details.get("metadata") or {}
+
+            # Fusionar metadata de todas las fuentes posibles
+            merged = {}
+            merged.update(parent_metadata)
+            merged.update(item_metadata)
+            merged.update(line_metadata)
+
+            overage_period_id = int(merged.get("overage_period_id", 0))
+            line_quantity = int(merged.get("quantity", 0))
+            line_amount = int(line.get("amount", 0))
+            line_stripe_invoice_item_id = (
+                merged.get("stripe_invoice_item_id")
+                or item_details.get("id")
+                or parent_item_details.get("id")
+                or ""
+            )
+            line_report_sequence = int(merged.get("report_sequence", 0))
+
+            if overage_period_id and billing_code:
+                _notify_cfdi_overage_billed(
+                    user_id=subscription.user_id,
+                    billing_code=billing_code,
+                    subscription_id=subscription.id,
+                    overage_period_id=overage_period_id,
+                    quantity=line_quantity,
+                    amount=line_amount,
+                    stripe_invoice_item_id=line_stripe_invoice_item_id,
+                    stripe_invoice_id=invoice_id,
+                    report_sequence=line_report_sequence,
+                    paid_at=paid_at,
+                )
+
         logger.info(
             "handle_cfdi_overage_invoice_paid: pago de excedentes CFDI "
-            "registrado invoice_id=%s subscription_id=%s amount=%s. "
-            "NO se renueva la suscripción. "
-            "TODO Fase 7C: notificar a Django para marcar CfdiOveragePeriod "
-            "como billed.",
+            "registrado invoice_id=%s subscription_id=%s amount=%s "
+            "overage_lines=%d",
             invoice_id,
             subscription.id,
             invoice.get("amount_paid", 0),
+            len(overage_lines),
         )
 
 
@@ -1044,6 +1159,53 @@ def handle_subscription_payment(invoice: dict, event: dict):
                 period_end=subscription.end_date,
                 stripe_subscription_id=stripe_sub_id,
             )
+
+        # Fase 7C: notificar cfdi_overage_billed por cada línea de excedente
+        # en facturas mixtas (la de solo excedentes ya se procesa arriba).
+        if overage_lines and billing_code:
+            paid_at_ts_for_overage = invoice.get("status_transitions", {}).get("paid_at")
+            paid_at_for_overage = (
+                datetime.fromtimestamp(paid_at_ts_for_overage, tz=timezone.utc)
+                if paid_at_ts_for_overage else datetime.now(timezone.utc)
+            )
+
+            for line in overage_lines:
+                line_metadata = line.get("metadata") or {}
+                item_details = line.get("invoice_item_details") or {}
+                item_metadata = item_details.get("metadata") or {}
+                parent = line.get("parent") or {}
+                parent_item_details = parent.get("invoice_item_details") or {}
+                parent_metadata = parent_item_details.get("metadata") or {}
+
+                merged = {}
+                merged.update(parent_metadata)
+                merged.update(item_metadata)
+                merged.update(line_metadata)
+
+                overage_period_id = int(merged.get("overage_period_id", 0))
+                line_quantity = int(merged.get("quantity", 0))
+                line_amount = int(line.get("amount", 0))
+                line_stripe_invoice_item_id = (
+                    merged.get("stripe_invoice_item_id")
+                    or item_details.get("id")
+                    or parent_item_details.get("id")
+                    or ""
+                )
+                line_report_sequence = int(merged.get("report_sequence", 0))
+
+                if overage_period_id:
+                    _notify_cfdi_overage_billed(
+                        user_id=int(user_id_from_invoice),
+                        billing_code=billing_code,
+                        subscription_id=subscription.id,
+                        overage_period_id=overage_period_id,
+                        quantity=line_quantity,
+                        amount=line_amount,
+                        stripe_invoice_item_id=line_stripe_invoice_item_id,
+                        stripe_invoice_id=invoice_id,
+                        report_sequence=line_report_sequence,
+                        paid_at=paid_at_for_overage,
+                    )
 
 
 # #Pago de suscripción version anterior sin distinción de billing_reason

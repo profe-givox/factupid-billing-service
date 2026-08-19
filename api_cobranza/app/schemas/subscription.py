@@ -55,9 +55,10 @@ class SubscriptionIdRequest(BaseModel):
 class ReportOverageRequest(BaseModel):
     """
     Petición para reportar excedentes de timbres CFDI a Stripe como un
-    invoice item (Fase 7B OnDemand).
+    invoice item (Fase 7C delta).
 
-    amount se calcula en Billing como total_amount * 100 (centavos).
+    quantity es el delta pendiente (overage_quantity - reported_quantity),
+    NO el total del periodo. Billing lo trata como un lote independiente.
     """
     subscription_id: int
     user_id: int
@@ -69,3 +70,4 @@ class ReportOverageRequest(BaseModel):
     total_amount: float
     currency: str = "mxn"
     description: Optional[str] = None
+    report_sequence: Optional[int] = None
