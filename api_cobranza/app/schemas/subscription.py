@@ -59,6 +59,9 @@ class ReportOverageRequest(BaseModel):
 
     quantity es el delta pendiente (overage_quantity - reported_quantity),
     NO el total del periodo. Billing lo trata como un lote independiente.
+
+    idempotency_key es una cadena determinística generada por Django para
+    evitar invoice items duplicados en Stripe.
     """
     subscription_id: int
     user_id: int
@@ -71,3 +74,4 @@ class ReportOverageRequest(BaseModel):
     currency: str = "mxn"
     description: Optional[str] = None
     report_sequence: Optional[int] = None
+    idempotency_key: Optional[str] = None

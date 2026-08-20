@@ -439,24 +439,35 @@ def report_overage(
             f"lote {report_sequence} - periodo {period_start} a {period_end}"
         )
 
+        # Idempotency key para evitar invoice items duplicados en Stripe.
+        # Si viene en el payload, se usa directamente. Stripe retorna el
+        # mismo invoice item si la key es idéntica.
+        idempotency_key = payload.idempotency_key or None
+
+        stripe_kwargs = dict(
+            customer=customer_id,
+            amount=amount_cents,
+            currency=currency,
+            description=description,
+            metadata={
+                "factupid_type": "cfdi_overage",
+                "user_id": str(payload.user_id),
+                "subscription_id": str(payload.subscription_id),
+                "overage_period_id": str(payload.overage_period_id),
+                "period_start": str(payload.period_start),
+                "period_end": str(payload.period_end),
+                "quantity": str(payload.quantity),
+                "unit_price": str(payload.unit_price),
+                "report_sequence": str(report_sequence),
+            },
+        )
+
+        if idempotency_key:
+            stripe_kwargs["idempotency_key"] = idempotency_key
+            stripe_kwargs["metadata"]["idempotency_key"] = idempotency_key
+
         try:
-            invoice_item = stripe.InvoiceItem.create(
-                customer=customer_id,
-                amount=amount_cents,
-                currency=currency,
-                description=description,
-                metadata={
-                    "factupid_type": "cfdi_overage",
-                    "user_id": str(payload.user_id),
-                    "subscription_id": str(payload.subscription_id),
-                    "overage_period_id": str(payload.overage_period_id),
-                    "period_start": str(payload.period_start),
-                    "period_end": str(payload.period_end),
-                    "quantity": str(payload.quantity),
-                    "unit_price": str(payload.unit_price),
-                    "report_sequence": str(report_sequence),
-                },
-            )
+            invoice_item = stripe.InvoiceItem.create(**stripe_kwargs)
         except stripe.error.StripeError as exc:
             raise HTTPException(
                 status_code=502,
@@ -471,6 +482,7 @@ def report_overage(
             "stripe_invoice_item_id": invoice_item.id,
             "amount": amount_cents,
             "currency": currency,
+            "idempotency_key": idempotency_key,
         }
 
 

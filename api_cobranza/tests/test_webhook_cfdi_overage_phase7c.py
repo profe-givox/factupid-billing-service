@@ -395,3 +395,155 @@ class TestOverageMetadataExtraction:
         assert mock_billed.call_args.kwargs["overage_period_id"] == 33
         assert mock_billed.call_args.kwargs["quantity"] == 6
         assert mock_billed.call_args.kwargs["report_sequence"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 11. Idempotency key se envía a Stripe y aparece en metadata
+# ---------------------------------------------------------------------------
+
+
+class TestReportOverageIdempotencyKey:
+    """report-overage pasa idempotency_key a stripe.InvoiceItem.create."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_engine(self):
+        with patch("app.routers.subscriptions.engine", test_engine):
+            yield
+
+    def test_idempotency_key_se_envia_a_stripe(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        payload = {
+            "subscription_id": sub_id,
+            "user_id": 1,
+            "overage_period_id": 88,
+            "period_start": "2026-08-01",
+            "period_end": "2026-08-31",
+            "quantity": 50,
+            "unit_price": 0.5,
+            "total_amount": 25.0,
+            "currency": "mxn",
+            "report_sequence": 1,
+            "idempotency_key": "cfdi-overage-88-0-50",
+        }
+
+        item = MagicMock()
+        item.id = "ii_idempotent_stripe_1"
+
+        with patch("stripe.InvoiceItem.create") as mock_invoice_item:
+            mock_invoice_item.return_value = item
+            response = client.post(REPORT_OVERAGE_URL, json=payload)
+
+        assert response.status_code == 200
+        call_kwargs = mock_invoice_item.call_args.kwargs
+        assert call_kwargs["idempotency_key"] == "cfdi-overage-88-0-50"
+
+    def test_idempotency_key_en_metadata(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        payload = {
+            "subscription_id": sub_id,
+            "user_id": 1,
+            "overage_period_id": 89,
+            "period_start": "2026-08-01",
+            "period_end": "2026-08-31",
+            "quantity": 20,
+            "unit_price": 0.5,
+            "total_amount": 10.0,
+            "currency": "mxn",
+            "idempotency_key": "cfdi-overage-89-0-20",
+        }
+
+        item = MagicMock()
+        item.id = "ii_idempotent_meta_1"
+
+        with patch("stripe.InvoiceItem.create") as mock_invoice_item:
+            mock_invoice_item.return_value = item
+            response = client.post(REPORT_OVERAGE_URL, json=payload)
+
+        assert response.status_code == 200
+        metadata = mock_invoice_item.call_args.kwargs["metadata"]
+        assert metadata["idempotency_key"] == "cfdi-overage-89-0-20"
+
+    def test_respuesta_incluye_idempotency_key(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        payload = {
+            "subscription_id": sub_id,
+            "user_id": 1,
+            "overage_period_id": 90,
+            "period_start": "2026-08-01",
+            "period_end": "2026-08-31",
+            "quantity": 10,
+            "unit_price": 0.5,
+            "total_amount": 5.0,
+            "currency": "mxn",
+            "idempotency_key": "cfdi-overage-90-0-10",
+        }
+
+        item = MagicMock()
+        item.id = "ii_idempotent_resp_1"
+
+        with patch("stripe.InvoiceItem.create") as mock_invoice_item:
+            mock_invoice_item.return_value = item
+            response = client.post(REPORT_OVERAGE_URL, json=payload)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["idempotency_key"] == "cfdi-overage-90-0-10"
+
+    def test_sin_idempotency_key_no_rompe(self, client, auth_headers):
+        """Si no se envía idempotency_key, funciona sin ella (retrocompat)."""
+        sub_id = _seed_subscription()
+
+        payload = {
+            "subscription_id": sub_id,
+            "user_id": 1,
+            "overage_period_id": 91,
+            "period_start": "2026-08-01",
+            "period_end": "2026-08-31",
+            "quantity": 5,
+            "unit_price": 0.5,
+            "total_amount": 2.5,
+            "currency": "mxn",
+        }
+
+        item = MagicMock()
+        item.id = "ii_no_idemp_1"
+
+        with patch("stripe.InvoiceItem.create") as mock_invoice_item:
+            mock_invoice_item.return_value = item
+            response = client.post(REPORT_OVERAGE_URL, json=payload)
+
+        assert response.status_code == 200
+        call_kwargs = mock_invoice_item.call_args.kwargs
+        assert "idempotency_key" not in call_kwargs
+
+    def test_no_modifica_subscription_status(self, client, auth_headers):
+        """report-overage no cambia subscription.status."""
+        sub_id = _seed_subscription()
+
+        payload = {
+            "subscription_id": sub_id,
+            "user_id": 1,
+            "overage_period_id": 92,
+            "period_start": "2026-08-01",
+            "period_end": "2026-08-31",
+            "quantity": 10,
+            "unit_price": 0.5,
+            "total_amount": 5.0,
+            "currency": "mxn",
+            "idempotency_key": "cfdi-overage-92-0-10",
+        }
+
+        item = MagicMock()
+        item.id = "ii_status_check_1"
+
+        with patch("stripe.InvoiceItem.create") as mock_invoice_item:
+            mock_invoice_item.return_value = item
+            response = client.post(REPORT_OVERAGE_URL, json=payload)
+
+        assert response.status_code == 200
+        with Session(test_engine) as db:
+            sub = db.get(Subscription, sub_id)
+            assert sub.status == "active"
