@@ -197,8 +197,8 @@ class TestSchedulerLifecycle:
         start_scheduler(interval_minutes=10)
         assert scheduler.running
         jobs = scheduler.get_jobs()
-        assert len(jobs) == 1
-        assert jobs[0].id == "process_pending_notifications"
+        job_ids = [j.id for j in jobs]
+        assert "process_pending_notifications" in job_ids
         shutdown_scheduler()
 
     def test_shutdown_is_safe_if_not_running(self):

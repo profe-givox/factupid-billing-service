@@ -11,6 +11,7 @@ from app.db.session import get_session, engine
 from app.models.subscription import Subscription
 from app.models.payment import WebhookNotificationQueue
 from app.services.stripe_service import release_stripe_schedule_if_possible
+from app.services.main_app_overage import trigger_main_app_overage_reporting
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -87,6 +88,9 @@ async def stripe_webhook(
     # Cambio de estado de suscripción
     elif event["type"] == "customer.subscription.updated":
         handle_subscription_updated(event["data"]["object"])
+    # Fase 7C.4: Último sync de excedentes antes del cobro
+    elif event["type"] == "invoice.created":
+        handle_invoice_created(event["data"]["object"])
 
     return {"status": "ok"}
 
@@ -743,6 +747,71 @@ def _notify_cfdi_overage_billed(
         overage_period_id, last_error,
     )
     return False
+
+
+def handle_invoice_created(invoice: dict):
+    """
+    Fase 7C.4: Cuando Stripe crea una invoice draft para una suscripción,
+    dispara un último sync de excedentes CFDI a Django para que los
+    invoice items pendientes se agreguen antes del cobro.
+
+    Solo actúa sobre invoices de suscripción (con campo "subscription").
+    No renueva suscripción, no crea Payment, no cambia estado.
+    Si Django falla, responde OK a Stripe — la idempotencia y el
+    scheduler periódico harán reintentos.
+    """
+    print("========== STRIPE INVOICE CREATED ==========")
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+
+    invoice_id = invoice.get("id")
+    subscription_id = invoice.get("subscription")
+
+    # Solo procesar invoices de suscripción
+    if not subscription_id:
+        return
+
+    # Ignorar invoices de un solo pago (payment_intent)
+    billing_reason = invoice.get("billing_reason")
+    if billing_reason in ("manual", "upcoming"):
+        return
+
+    logger.info(
+        "invoice.created: invoice_id=%s subscription_stripe_id=%s "
+        "billing_reason=%s",
+        invoice_id, subscription_id, billing_reason,
+    )
+
+    # Resolver Subscription local por stripe_subscription_id
+    with Session(engine) as db:
+        subscription = db.exec(
+            select(Subscription).where(
+                Subscription.stripe_subscription_id == subscription_id
+            )
+        ).first()
+
+    if not subscription:
+        logger.warning(
+            "invoice.created: subscription %s no encontrada en BD. "
+            "Ignorando sync de excedentes.",
+            subscription_id,
+        )
+        return
+
+    # Disparar sync final de excedentes a Django
+    ok = trigger_main_app_overage_reporting(
+        mode="invoice_created",
+        billing_subscription_id=subscription.id,
+        stripe_subscription_id=subscription_id,
+    )
+
+    if not ok:
+        logger.warning(
+            "invoice.created: sync de excedentes a Django falló "
+            "para subscription_id=%s. La idempotencia y el scheduler "
+            "periódico harán reintentos.",
+            subscription.id,
+        )
 
 
 def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):

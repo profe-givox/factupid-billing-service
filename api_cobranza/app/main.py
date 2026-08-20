@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlmodel import Session, select, func
 
+from app.core.config import settings
 from app.routers import plans, payments, webhooks, subscriptions, test_auth
 from app.db.session import engine, get_session
 from app.db.seed import seed_plans
@@ -16,7 +17,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    start_scheduler(interval_minutes=5)
+    start_scheduler(
+        interval_minutes=5,
+        overage_interval_minutes=settings.OVERAGE_REPORTING_INTERVAL_MINUTES,
+        enable_overage_reporting=settings.ENABLE_OVERAGE_REPORTING_SCHEDULER,
+    )
     yield
     # Shutdown
     shutdown_scheduler()

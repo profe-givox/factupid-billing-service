@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # Webhook secrets
     COBRANZA_WEBHOOK_SECRET: str | None = None
     MAIN_APP_BASE: str | None = None
+
+    # Fase 7C.3: Scheduler de reporte de excedentes
+    OVERAGE_REPORTING_INTERVAL_MINUTES: int = 15
+    ENABLE_OVERAGE_REPORTING_SCHEDULER: bool = True
     
     # JWT
     JWT_PUBLIC_KEY: str | None = None
