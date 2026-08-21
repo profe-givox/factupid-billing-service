@@ -188,7 +188,7 @@ class TestReportOverage:
             customer="cus_123",
             amount=150,
             currency="mxn",
-            description="3 timbres CFDI excedentes - periodo 2026-08-01 a 2026-08-31",
+            description="3 timbres CFDI excedentes - lote 0 - periodo 2026-08-01 a 2026-08-31",
             metadata={
                 "factupid_type": "cfdi_overage",
                 "user_id": "1",
@@ -198,6 +198,7 @@ class TestReportOverage:
                 "period_end": "2026-08-31",
                 "quantity": "3",
                 "unit_price": "0.5",
+                "report_sequence": "0",
             },
         )
 
@@ -219,7 +220,7 @@ class TestReportOverage:
             customer="cus_existente",
             amount=150,
             currency="mxn",
-            description="3 timbres CFDI excedentes - periodo 2026-08-01 a 2026-08-31",
+            description="3 timbres CFDI excedentes - lote 0 - periodo 2026-08-01 a 2026-08-31",
             metadata={
                 "factupid_type": "cfdi_overage",
                 "user_id": "1",
@@ -229,6 +230,7 @@ class TestReportOverage:
                 "period_end": "2026-08-31",
                 "quantity": "3",
                 "unit_price": "0.5",
+                "report_sequence": "0",
             },
         )
 

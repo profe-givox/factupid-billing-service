@@ -749,6 +749,55 @@ def _notify_cfdi_overage_billed(
     return False
 
 
+def _get_stripe_subscription_id_from_invoice(invoice: dict) -> str | None:
+    """
+    Resuelve el stripe_subscription_id desde un evento invoice de Stripe.
+
+    El campo invoice["subscription"] puede no estar presente en versiones
+    recientes de la API de Stripe. Esta función intenta múltiples rutas:
+      1. invoice["subscription"] (formato clásico)
+      2. invoice["parent"]["subscription_details"]["subscription"]
+      3. invoice["lines"]["data"][0]["parent"]["subscription_item_details"]["subscription"]
+      4. invoice["lines"]["data"][0]["subscription"] (campo legacy)
+    """
+    if not isinstance(invoice, dict):
+        return None
+
+    # Ruta 1: campo clásico
+    sub_id = invoice.get("subscription")
+    if sub_id:
+        return sub_id
+
+    # Ruta 2: parent.subscription_details.subscription (API reciente)
+    parent = invoice.get("parent") or {}
+    if isinstance(parent, dict):
+        sub_details = parent.get("subscription_details") or {}
+        if isinstance(sub_details, dict):
+            sub_id = sub_details.get("subscription")
+            if sub_id:
+                return sub_id
+
+    # Ruta 3: primera línea → parent.subscription_item_details.subscription
+    lines = (invoice.get("lines") or {}).get("data") or []
+    if isinstance(lines, list) and lines:
+        first_line = lines[0]
+        if isinstance(first_line, dict):
+            line_parent = first_line.get("parent") or {}
+            if isinstance(line_parent, dict):
+                sub_item_details = line_parent.get("subscription_item_details") or {}
+                if isinstance(sub_item_details, dict):
+                    sub_id = sub_item_details.get("subscription")
+                    if sub_id:
+                        return sub_id
+
+            # Ruta 4: campo legacy en línea
+            sub_id = first_line.get("subscription")
+            if sub_id:
+                return sub_id
+
+    return None
+
+
 def handle_invoice_created(invoice: dict):
     """
     Fase 7C.4: Cuando Stripe crea una invoice draft para una suscripción,
@@ -765,7 +814,7 @@ def handle_invoice_created(invoice: dict):
     from sqlmodel import Session, select
 
     invoice_id = invoice.get("id")
-    subscription_id = invoice.get("subscription")
+    subscription_id = _get_stripe_subscription_id_from_invoice(invoice)
 
     # Solo procesar invoices de suscripción
     if not subscription_id:
@@ -798,11 +847,12 @@ def handle_invoice_created(invoice: dict):
         )
         return
 
-    # Disparar sync final de excedentes a Django
+    # Disparar sync final de excedentes a Django, incluyendo stripe_invoice_id
     ok = trigger_main_app_overage_reporting(
         mode="invoice_created",
         billing_subscription_id=subscription.id,
         stripe_subscription_id=subscription_id,
+        stripe_invoice_id=invoice_id,
     )
 
     if not ok:

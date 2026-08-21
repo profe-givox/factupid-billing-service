@@ -62,6 +62,9 @@ class ReportOverageRequest(BaseModel):
 
     idempotency_key es una cadena determinística generada por Django para
     evitar invoice items duplicados en Stripe.
+
+    stripe_invoice_id es opcional: si se proporciona, el invoice item se
+    crea directamente sobre esa factura draft (en vez de la cola del cliente).
     """
     subscription_id: int
     user_id: int
@@ -75,3 +78,4 @@ class ReportOverageRequest(BaseModel):
     description: Optional[str] = None
     report_sequence: Optional[int] = None
     idempotency_key: Optional[str] = None
+    stripe_invoice_id: Optional[str] = None

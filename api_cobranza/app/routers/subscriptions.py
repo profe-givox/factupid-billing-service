@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 
 import stripe
+
+logger = logging.getLogger(__name__)
 
 from app.db.session import engine
 from app.models.plan import Plan
@@ -444,6 +447,45 @@ def report_overage(
         # mismo invoice item si la key es idéntica.
         idempotency_key = payload.idempotency_key or None
 
+        # Validación de idempotency_key vs stripe_invoice_id (Fase 7C.4 fix).
+        # La key debe reflejar el contexto (pending vs invoice-adjunto) para
+        # que Stripe no rechace la misma key con parámetros distintos.
+        if payload.stripe_invoice_id and idempotency_key:
+            if payload.stripe_invoice_id not in idempotency_key:
+                logger.warning(
+                    "report_overage: idempotency_key no contiene "
+                    "stripe_invoice_id. key=%s stripe_invoice_id=%s",
+                    idempotency_key, payload.stripe_invoice_id,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_IDEMPOTENCY_CONTEXT",
+                        "message": (
+                            "La idempotency_key para invoice draft debe "
+                            "incluir stripe_invoice_id."
+                        ),
+                    },
+                )
+
+        if not payload.stripe_invoice_id and idempotency_key:
+            if not idempotency_key.endswith("-pending"):
+                logger.warning(
+                    "report_overage: idempotency_key no termina en "
+                    "-pending sin stripe_invoice_id. key=%s",
+                    idempotency_key,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_IDEMPOTENCY_CONTEXT",
+                        "message": (
+                            "La idempotency_key sin invoice debe terminar "
+                            "en -pending."
+                        ),
+                    },
+                )
+
         stripe_kwargs = dict(
             customer=customer_id,
             amount=amount_cents,
@@ -466,6 +508,56 @@ def report_overage(
             stripe_kwargs["idempotency_key"] = idempotency_key
             stripe_kwargs["metadata"]["idempotency_key"] = idempotency_key
 
+        # Fase 7C.4: si se proporciona stripe_invoice_id, validar que
+        # la factura esté en estado draft y que el customer coincida.
+        # Si es válida, crear el invoice item directamente sobre esa factura.
+        attached_to_invoice = False
+        stripe_invoice_id = payload.stripe_invoice_id
+
+        if stripe_invoice_id:
+            try:
+                invoice_obj = stripe.Invoice.retrieve(stripe_invoice_id)
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+            invoice_status = invoice_obj.get("status")
+            invoice_customer = invoice_obj.get("customer")
+
+            if invoice_status != "draft":
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "INVOICE_NOT_DRAFT",
+                        "message": (
+                            f"Invoice {stripe_invoice_id} no está en estado draft "
+                            f"(status={invoice_status})."
+                        ),
+                        "invoice_status": invoice_status,
+                    },
+                )
+
+            if invoice_customer != customer_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "CUSTOMER_MISMATCH",
+                        "message": (
+                            f"El customer de la invoice ({invoice_customer}) "
+                            f"no coincide con el customer de la suscripción ({customer_id})"
+                        ),
+                    },
+                )
+
+            # Factura draft válida: crear item directamente sobre ella
+            stripe_kwargs["invoice"] = stripe_invoice_id
+            attached_to_invoice = True
+
         try:
             invoice_item = stripe.InvoiceItem.create(**stripe_kwargs)
         except stripe.error.StripeError as exc:
@@ -483,6 +575,8 @@ def report_overage(
             "amount": amount_cents,
             "currency": currency,
             "idempotency_key": idempotency_key,
+            "attached_to_invoice": attached_to_invoice,
+            "stripe_invoice_id": stripe_invoice_id,
         }
 
 

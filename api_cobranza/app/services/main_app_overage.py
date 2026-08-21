@@ -19,6 +19,7 @@ def trigger_main_app_overage_reporting(
     mode="periodic",
     billing_subscription_id=None,
     stripe_subscription_id=None,
+    stripe_invoice_id=None,
 ):
     """
     Llama a Django POST /subscription/report-overages/ para reportar
@@ -28,6 +29,7 @@ def trigger_main_app_overage_reporting(
         mode: "periodic"|"invoice_created"|"manual"
         billing_subscription_id: int opcional — ID de Subscription en Billing
         stripe_subscription_id: str opcional — ID de suscripción en Stripe
+        stripe_invoice_id: str opcional — ID de invoice draft en Stripe
 
     Returns:
         True si la llamada fue exitosa, False si falló.
@@ -57,11 +59,15 @@ def trigger_main_app_overage_reporting(
         payload["billing_subscription_id"] = billing_subscription_id
     if stripe_subscription_id is not None:
         payload["stripe_subscription_id"] = stripe_subscription_id
+    if stripe_invoice_id is not None:
+        payload["stripe_invoice_id"] = stripe_invoice_id
 
     logger.info(
         "trigger_main_app_overage_reporting: mode=%s "
-        "billing_subscription_id=%s stripe_subscription_id=%s",
+        "billing_subscription_id=%s stripe_subscription_id=%s "
+        "stripe_invoice_id=%s",
         mode, billing_subscription_id, stripe_subscription_id,
+        stripe_invoice_id,
     )
 
     try:

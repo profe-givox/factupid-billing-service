@@ -424,7 +424,7 @@ class TestReportOverageIdempotencyKey:
             "total_amount": 25.0,
             "currency": "mxn",
             "report_sequence": 1,
-            "idempotency_key": "cfdi-overage-88-0-50",
+            "idempotency_key": "cfdi-overage-88-0-50-pending",
         }
 
         item = MagicMock()
@@ -436,7 +436,7 @@ class TestReportOverageIdempotencyKey:
 
         assert response.status_code == 200
         call_kwargs = mock_invoice_item.call_args.kwargs
-        assert call_kwargs["idempotency_key"] == "cfdi-overage-88-0-50"
+        assert call_kwargs["idempotency_key"] == "cfdi-overage-88-0-50-pending"
 
     def test_idempotency_key_en_metadata(self, client, auth_headers):
         sub_id = _seed_subscription()
@@ -451,7 +451,7 @@ class TestReportOverageIdempotencyKey:
             "unit_price": 0.5,
             "total_amount": 10.0,
             "currency": "mxn",
-            "idempotency_key": "cfdi-overage-89-0-20",
+            "idempotency_key": "cfdi-overage-89-0-20-pending",
         }
 
         item = MagicMock()
@@ -463,7 +463,7 @@ class TestReportOverageIdempotencyKey:
 
         assert response.status_code == 200
         metadata = mock_invoice_item.call_args.kwargs["metadata"]
-        assert metadata["idempotency_key"] == "cfdi-overage-89-0-20"
+        assert metadata["idempotency_key"] == "cfdi-overage-89-0-20-pending"
 
     def test_respuesta_incluye_idempotency_key(self, client, auth_headers):
         sub_id = _seed_subscription()
@@ -478,7 +478,7 @@ class TestReportOverageIdempotencyKey:
             "unit_price": 0.5,
             "total_amount": 5.0,
             "currency": "mxn",
-            "idempotency_key": "cfdi-overage-90-0-10",
+            "idempotency_key": "cfdi-overage-90-0-10-pending",
         }
 
         item = MagicMock()
@@ -490,7 +490,7 @@ class TestReportOverageIdempotencyKey:
 
         assert response.status_code == 200
         body = response.json()
-        assert body["idempotency_key"] == "cfdi-overage-90-0-10"
+        assert body["idempotency_key"] == "cfdi-overage-90-0-10-pending"
 
     def test_sin_idempotency_key_no_rompe(self, client, auth_headers):
         """Si no se envía idempotency_key, funciona sin ella (retrocompat)."""
@@ -533,7 +533,7 @@ class TestReportOverageIdempotencyKey:
             "unit_price": 0.5,
             "total_amount": 5.0,
             "currency": "mxn",
-            "idempotency_key": "cfdi-overage-92-0-10",
+            "idempotency_key": "cfdi-overage-92-0-10-pending",
         }
 
         item = MagicMock()
