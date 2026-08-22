@@ -30,6 +30,7 @@ def _seed_subscription(
     user_id=1,
     status="active",
     stripe_customer_id="cus_overage_1",
+    stripe_subscription_id="sub_stripe_overage_1",
     start_date=None,
     end_date=None,
 ):
@@ -49,7 +50,7 @@ def _seed_subscription(
             plan_id=plan.id,
             status=status,
             provider="stripe",
-            stripe_subscription_id="sub_stripe_overage_1",
+            stripe_subscription_id=stripe_subscription_id,
             stripe_customer_id=stripe_customer_id,
             start_date=start_date or date(2026, 8, 1),
             end_date=end_date or date(2026, 8, 31),
@@ -547,3 +548,431 @@ class TestReportOverageIdempotencyKey:
         with Session(test_engine) as db:
             sub = db.get(Subscription, sub_id)
             assert sub.status == "active"
+
+
+# ---------------------------------------------------------------------------
+# Tests Fase 7C.5: amount_cents, amount_decimal y facturas mixtas
+# ---------------------------------------------------------------------------
+
+
+class TestOverageBilledSendsAmountCentsAndDecimal:
+    """cfdi_overage_billed envía amount_cents y amount_decimal a Django."""
+
+    def test_envia_amount_cents_y_decimal(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        now_ts = int(time.time())
+
+        overage_line = {
+            "amount": 1350,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {
+                "factupid_type": "cfdi_overage",
+                "overage_period_id": "200",
+                "quantity": "27",
+                "unit_price": "0.5",
+                "report_sequence": "1",
+            },
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_stripe_amt_1"},
+            },
+        }
+
+        event = {
+            "id": "evt_amt_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_amt_1",
+                    "amount_paid": 1350,
+                    "currency": "mxn",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_stripe_amt_1",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [overage_line]},
+                },
+            },
+        }
+
+        with patch("app.routers.webhooks._notify_cfdi_overage_billed") as mock_billed:
+            response = _post_invoice_webhook(client, event)
+
+        assert response.status_code == 200
+        mock_billed.assert_called_once()
+        call_kwargs = mock_billed.call_args.kwargs
+        assert call_kwargs["amount_cents"] == 1350
+        assert call_kwargs["amount_decimal"] == "13.50"
+        assert call_kwargs["quantity"] == 27
+
+
+class TestMixedInvoiceSendsOverageBilledAndRenewed:
+    """Factura mixta notifica cfdi_overage_billed y subscription_renewed."""
+
+    def test_mixta_notifica_billed_y_renewed(self, client, auth_headers):
+        sub_id = _seed_subscription(
+            stripe_subscription_id="sub_stripe_mix_1",
+            stripe_customer_id="cus_mix_1",
+        )
+
+        now_ts = int(time.time())
+
+        subscription_line = {
+            "amount": 5000,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {},
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_stripe_mix_1"},
+            },
+        }
+
+        overage_line = {
+            "amount": 2000,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {
+                "factupid_type": "cfdi_overage",
+                "overage_period_id": "201",
+                "quantity": "40",
+                "unit_price": "0.5",
+                "report_sequence": "2",
+            },
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_stripe_mix_1"},
+            },
+        }
+
+        event = {
+            "id": "evt_mix_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_mix_1",
+                    "billing_reason": "subscription_cycle",
+                    "amount_paid": 7000,
+                    "currency": "mxn",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_stripe_mix_1",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [subscription_line, overage_line]},
+                },
+            },
+        }
+
+        with patch("app.routers.webhooks.notify_subscription_event") as mock_renewed, \
+             patch("app.routers.webhooks._notify_cfdi_overage_billed") as mock_billed:
+            response = _post_invoice_webhook(client, event)
+
+        assert response.status_code == 200
+        mock_renewed.assert_called_once()
+        mock_billed.assert_called_once()
+        call_kwargs = mock_billed.call_args.kwargs
+        assert call_kwargs["amount_cents"] == 2000
+        assert call_kwargs["amount_decimal"] == "20.00"
+
+
+class TestOverageOnlyInvoiceNoRenewal:
+    """Factura solo excedente notifica cfdi_overage_billed y NO subscription_renewed."""
+
+    def test_solo_excedente_no_renueva(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        now_ts = int(time.time())
+
+        overage_line = {
+            "amount": 1500,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {
+                "factupid_type": "cfdi_overage",
+                "overage_period_id": "202",
+                "quantity": "30",
+                "unit_price": "0.5",
+                "report_sequence": "1",
+            },
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_stripe_only_1"},
+            },
+        }
+
+        event = {
+            "id": "evt_only_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_only_1",
+                    "amount_paid": 1500,
+                    "currency": "mxn",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_stripe_only_1",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [overage_line]},
+                },
+            },
+        }
+
+        with patch("app.routers.webhooks.notify_subscription_event") as mock_renewed, \
+             patch("app.routers.webhooks._notify_cfdi_overage_billed") as mock_billed:
+            response = _post_invoice_webhook(client, event)
+
+        assert response.status_code == 200
+        mock_billed.assert_called_once()
+        mock_renewed.assert_not_called()
+
+
+class TestOverageMetadataExtraction:
+    """Metadata de report_sequence y stripe_invoice_item_id se extrae correctamente."""
+
+    def test_metadata_se_extrae_del_invoice_item(self, client, auth_headers):
+        sub_id = _seed_subscription()
+
+        now_ts = int(time.time())
+
+        overage_line = {
+            "amount": 500,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {
+                "factupid_type": "cfdi_overage",
+                "overage_period_id": "203",
+                "quantity": "10",
+                "unit_price": "0.5",
+                "report_sequence": "5",
+                "stripe_invoice_item_id": "ii_from_meta_1",
+            },
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_stripe_meta_1"},
+            },
+        }
+
+        event = {
+            "id": "evt_meta_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_meta_1",
+                    "amount_paid": 500,
+                    "currency": "mxn",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_stripe_meta_1",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [overage_line]},
+                },
+            },
+        }
+
+        with patch("app.routers.webhooks._notify_cfdi_overage_billed") as mock_billed:
+            response = _post_invoice_webhook(client, event)
+
+        assert response.status_code == 200
+        mock_billed.assert_called_once()
+        call_kwargs = mock_billed.call_args.kwargs
+        assert call_kwargs["overage_period_id"] == 203
+        assert call_kwargs["quantity"] == 10
+        assert call_kwargs["report_sequence"] == 5
+        assert call_kwargs["stripe_invoice_item_id"] == "ii_from_meta_1"
+        assert call_kwargs["stripe_invoice_id"] == "in_meta_1"
+
+
+# ---------------------------------------------------------------------------
+# PARTE G: Tests de stripe_sub_id conflict resolution
+# ---------------------------------------------------------------------------
+
+
+class TestStripeSubIdConflictResolution:
+    """Cuando stripe_sub_id del invoice difiere del local, usar el local."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_engine(self):
+        with patch("app.routers.webhooks.engine", test_engine):
+            yield
+
+    def test_stripe_sub_id_conflicto_usa_local(self, client, auth_headers):
+        """Subscription local tiene stripe_subscription_id='sub_local_1',
+        invoice trae stripe_sub_id diferente → se resuelve con el local."""
+        sub_id = _seed_subscription(stripe_subscription_id="sub_local_1")
+
+        now_ts = int(time.time())
+
+        sub_line = {
+            "amount": 5000,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {"factupid_type": "subscription"},
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_local_1"},
+            },
+        }
+
+        event = {
+            "id": "evt_conflict_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_conflict_1",
+                    "amount_paid": 5000,
+                    "currency": "mxn",
+                    "billing_reason": "subscription_cycle",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_fallback_wrong",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [sub_line]},
+                },
+            },
+        }
+
+        response = _post_invoice_webhook(client, event)
+        assert response.status_code == 200
+
+        with Session(test_engine) as db:
+            from sqlmodel import select
+            sub = db.exec(select(Subscription).where(Subscription.id == sub_id)).first()
+            assert sub.stripe_subscription_id == "sub_local_1"
+
+    def test_stripe_sub_id_sin_local_usa_del_invoice(self, client, auth_headers):
+        """Subscription local NO tiene stripe_subscription_id → se usa el del invoice."""
+        sub_id = _seed_subscription(stripe_subscription_id=None)
+
+        now_ts = int(time.time())
+
+        sub_line = {
+            "amount": 5000,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {"factupid_type": "subscription"},
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_from_invoice"},
+            },
+        }
+
+        event = {
+            "id": "evt_no_local_1",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_no_local_1",
+                    "amount_paid": 5000,
+                    "currency": "mxn",
+                    "billing_reason": "subscription_cycle",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_from_invoice",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [sub_line]},
+                },
+            },
+        }
+
+        response = _post_invoice_webhook(client, event)
+        assert response.status_code == 200
+
+        with Session(test_engine) as db:
+            from sqlmodel import select
+            sub = db.exec(select(Subscription).where(Subscription.id == sub_id)).first()
+            assert sub.stripe_subscription_id == "sub_from_invoice"
+
+    def test_factura_mixta_no_ignora_por_conflicto(self, client, auth_headers):
+        """Factura mixta (subscription + overage) con stripe_sub_id diferente
+        en línea de excedente NO causa conflicto — se procesa normalmente."""
+        sub_id = _seed_subscription(stripe_subscription_id="sub_real_1")
+
+        now_ts = int(time.time())
+
+        sub_line = {
+            "amount": 5000,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {"factupid_type": "subscription"},
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_real_1"},
+            },
+        }
+
+        overage_line = {
+            "amount": 1500,
+            "period": {"start": now_ts, "end": now_ts + 30 * 86400},
+            "metadata": {
+                "factupid_type": "cfdi_overage",
+                "overage_period_id": "300",
+                "quantity": "30",
+                "unit_price": "0.5",
+                "report_sequence": "1",
+                "stripe_invoice_item_id": "ii_mix_1",
+            },
+            "parent": {
+                "subscription_item_details": {"subscription": "sub_wrong_overage_line"},
+            },
+        }
+
+        event = {
+            "id": "evt_mix_conflict",
+            "type": "invoice.payment_succeeded",
+            "data": {
+                "object": {
+                    "id": "in_mix_conflict",
+                    "amount_paid": 6500,
+                    "currency": "mxn",
+                    "billing_reason": "subscription_cycle",
+                    "status_transitions": {"paid_at": now_ts},
+                    "parent": {
+                        "subscription_details": {
+                            "subscription": "sub_real_1",
+                            "metadata": {
+                                "subscription_id": str(sub_id),
+                                "user_id": "1",
+                                "billing_code": "CFDI_PRO",
+                            },
+                        },
+                    },
+                    "lines": {"data": [sub_line, overage_line]},
+                },
+            },
+        }
+
+        with patch("app.routers.webhooks.notify_subscription_event") as mock_renewed, \
+             patch("app.routers.webhooks._notify_cfdi_overage_billed") as mock_billed:
+            response = _post_invoice_webhook(client, event)
+
+        assert response.status_code == 200
+        mock_renewed.assert_called_once()
+        mock_billed.assert_called_once()

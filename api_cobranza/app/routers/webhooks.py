@@ -11,7 +11,6 @@ from app.db.session import get_session, engine
 from app.models.subscription import Subscription
 from app.models.payment import WebhookNotificationQueue
 from app.services.stripe_service import release_stripe_schedule_if_possible
-from app.services.main_app_overage import trigger_main_app_overage_reporting
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -678,7 +677,8 @@ def _notify_cfdi_overage_billed(
     subscription_id: int,
     overage_period_id: int,
     quantity: int,
-    amount: int,
+    amount_cents: int,
+    amount_decimal: str,
     stripe_invoice_item_id: str,
     stripe_invoice_id: str,
     report_sequence: int,
@@ -686,7 +686,10 @@ def _notify_cfdi_overage_billed(
 ):
     """
     Notifica a Django que un lote de excedentes CFDI fue cobrado (Fase 7C).
+
     Django marcará el CfdiOveragePeriod correspondiente como billed.
+    amount_cents: monto en centavos (entero Stripe).
+    amount_decimal: monto en pesos (string Decimal, ej. "13.50").
     """
     base_url = settings.MAIN_APP_BASE
     if not base_url:
@@ -711,7 +714,8 @@ def _notify_cfdi_overage_billed(
         "subscription_id": subscription_id,
         "overage_period_id": overage_period_id,
         "quantity": quantity,
-        "amount": amount,
+        "amount_cents": amount_cents,
+        "amount_decimal": amount_decimal,
         "stripe_invoice_item_id": stripe_invoice_item_id,
         "stripe_invoice_id": stripe_invoice_id,
         "report_sequence": report_sequence,
@@ -728,8 +732,8 @@ def _notify_cfdi_overage_billed(
                 if response.status_code < 400:
                     logger.info(
                         "cfdi_overage_billed notificado a Django "
-                        "overage_period_id=%s quantity=%s",
-                        overage_period_id, quantity,
+                        "overage_period_id=%s quantity=%s amount_decimal=%s",
+                        overage_period_id, quantity, amount_decimal,
                     )
                     return True
                 last_error = f"HTTP {response.status_code}: {response.text[:200]}"
@@ -800,18 +804,22 @@ def _get_stripe_subscription_id_from_invoice(invoice: dict) -> str | None:
 
 def handle_invoice_created(invoice: dict):
     """
-    Fase 7C.4: Cuando Stripe crea una invoice draft para una suscripción,
+    Fase 7C.4/7C.6: Cuando Stripe crea una invoice draft para una suscripción,
     dispara un último sync de excedentes CFDI a Django para que los
     invoice items pendientes se agreguen antes del cobro.
 
     Solo actúa sobre invoices de suscripción (con campo "subscription").
     No renueva suscripción, no crea Payment, no cambia estado.
-    Si Django falla, responde OK a Stripe — la idempotencia y el
-    scheduler periódico harán reintentos.
+
+    Fase 7C.6: La llamada a Django se ejecuta en background (thread daemon)
+    para evitar el ciclo síncrono:
+        Stripe → Billing webhook → Django → Billing → Stripe
+    que causaba timeouts.
+
+    Si Django falla en background, la idempotencia y el scheduler
+    periódico harán reintentos.
     """
-    print("========== STRIPE INVOICE CREATED ==========")
-    from app.models.subscription import Subscription
-    from sqlmodel import Session, select
+    from app.services.main_app_overage import enqueue_overage_reporting_task
 
     invoice_id = invoice.get("id")
     subscription_id = _get_stripe_subscription_id_from_invoice(invoice)
@@ -832,6 +840,9 @@ def handle_invoice_created(invoice: dict):
     )
 
     # Resolver Subscription local por stripe_subscription_id
+    from app.models.subscription import Subscription
+    from sqlmodel import Session, select
+
     with Session(engine) as db:
         subscription = db.exec(
             select(Subscription).where(
@@ -847,21 +858,13 @@ def handle_invoice_created(invoice: dict):
         )
         return
 
-    # Disparar sync final de excedentes a Django, incluyendo stripe_invoice_id
-    ok = trigger_main_app_overage_reporting(
+    # Encolar en background para no bloquear el webhook de Stripe (Fase 7C.6)
+    enqueue_overage_reporting_task(
         mode="invoice_created",
         billing_subscription_id=subscription.id,
         stripe_subscription_id=subscription_id,
         stripe_invoice_id=invoice_id,
     )
-
-    if not ok:
-        logger.warning(
-            "invoice.created: sync de excedentes a Django falló "
-            "para subscription_id=%s. La idempotencia y el scheduler "
-            "periódico harán reintentos.",
-            subscription.id,
-        )
 
 
 def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
@@ -996,7 +999,8 @@ def handle_cfdi_overage_invoice_paid(invoice: dict, event: dict):
                     subscription_id=subscription.id,
                     overage_period_id=overage_period_id,
                     quantity=line_quantity,
-                    amount=line_amount,
+                    amount_cents=line_amount,
+                    amount_decimal=f"{line_amount / 100:.2f}",
                     stripe_invoice_item_id=line_stripe_invoice_item_id,
                     stripe_invoice_id=invoice_id,
                     report_sequence=line_report_sequence,
@@ -1062,22 +1066,30 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
     # Resolver stripe_sub_id y internal_subscription_id desde la línea
     # correcta (la de suscripción, NO la de excedente).
+    stripe_sub_source = "none"
     if subscription_line:
         stripe_sub_id = (
             subscription_line.get("parent", {})
                            .get("subscription_item_details", {})
                            .get("subscription")
         )
+        if stripe_sub_id:
+            stripe_sub_source = "subscription_line"
     else:
         stripe_sub_id = (
             invoice.get("parent", {})
                    .get("subscription_details", {})
                    .get("subscription")
-            or (invoice.get("lines", {}).get("data") or [{}])[0]
-                   .get("parent", {})
-                   .get("subscription_item_details", {})
-                   .get("subscription")
         )
+        if stripe_sub_id:
+            stripe_sub_source = "invoice.parent"
+
+    logger.info(
+        "handle_subscription_payment: stripe_sub_id=%s source=%s "
+        "subscription_line=%s overage_lines=%d invoice_id=%s",
+        stripe_sub_id, stripe_sub_source,
+        bool(subscription_line), len(overage_lines), invoice_id,
+    )
 
     internal_subscription_id = (
         invoice.get("parent", {})
@@ -1117,16 +1129,18 @@ def handle_subscription_payment(invoice: dict, event: dict):
             if candidate:
                 if candidate.stripe_subscription_id and stripe_sub_id:
                     if candidate.stripe_subscription_id != stripe_sub_id:
-                        logger.warning(
-                            "Evento Stripe ignorado por conflicto: "
-                            "metadata.subscription_id=%s local_stripe_subscription_id=%s "
-                            "stripe_sub_id=%s invoice_id=%s",
-                            internal_subscription_id,
+                        logger.info(
+                            "handle_subscription_payment: "
+                            "resolviendo conflicto stripe_sub_id — "
+                            "usando stripe_subscription_id local "
+                            "subscription_id=%s local_stripe=%s "
+                            "invoice_stripe=%s invoice_id=%s",
+                            candidate.id,
                             candidate.stripe_subscription_id,
                             stripe_sub_id,
                             invoice_id,
                         )
-                        return
+                        stripe_sub_id = candidate.stripe_subscription_id
 
                 subscription = candidate
 
@@ -1149,14 +1163,16 @@ def handle_subscription_payment(invoice: dict, event: dict):
 
         if stripe_sub_id and subscription.stripe_subscription_id != stripe_sub_id:
             logger.warning(
-                "Evento Stripe ignorado: subscription local id=%s tiene stripe_subscription_id=%s "
-                "pero invoice trae stripe_subscription_id=%s invoice_id=%s",
+                "handle_subscription_payment: inconsistencia residual "
+                "stripe_sub_id — subscription local id=%s tiene "
+                "stripe_subscription_id=%s pero stripe_sub_id=%s invoice_id=%s. "
+                "Procesando con stripe_subscription_id local.",
                 subscription.id,
                 subscription.stripe_subscription_id,
                 stripe_sub_id,
                 invoice_id,
             )
-            return
+            stripe_sub_id = subscription.stripe_subscription_id
 
         # 2 Idempotencia
         existing = db.exec(
@@ -1319,7 +1335,8 @@ def handle_subscription_payment(invoice: dict, event: dict):
                         subscription_id=subscription.id,
                         overage_period_id=overage_period_id,
                         quantity=line_quantity,
-                        amount=line_amount,
+                        amount_cents=line_amount,
+                        amount_decimal=f"{line_amount / 100:.2f}",
                         stripe_invoice_item_id=line_stripe_invoice_item_id,
                         stripe_invoice_id=invoice_id,
                         report_sequence=line_report_sequence,

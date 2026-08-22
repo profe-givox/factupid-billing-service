@@ -4,9 +4,14 @@ Billing llama a Django POST /subscription/report-overages/ para que este
 procese los CfdiOveragePeriod pendientes y cree invoice items en Stripe.
 
 Django es la fuente de verdad. Billing solo dispara el proceso.
+
+Fase 7C.6: enqueue_overage_reporting_task lanza la llamada a Django en un
+thread daemon para no bloquear el webhook de Stripe (evita ciclo síncrono
+Stripe → Billing → Django → Billing).
 """
 
 import logging
+import threading
 
 import httpx
 
@@ -71,7 +76,7 @@ def trigger_main_app_overage_reporting(
     )
 
     try:
-        with httpx.Client(timeout=30) as client:
+        with httpx.Client(timeout=45) as client:
             response = client.post(url, json=payload, headers=headers)
 
             if response.status_code < 400:
@@ -97,7 +102,7 @@ def trigger_main_app_overage_reporting(
     except httpx.TimeoutException:
         logger.warning(
             "trigger_main_app_overage_reporting: timeout "
-            "(30s) llamando a Django. mode=%s", mode,
+            "(45s) llamando a Django. mode=%s", mode,
         )
         return False
     except httpx.ConnectError:
@@ -112,3 +117,69 @@ def trigger_main_app_overage_reporting(
             exc,
         )
         return False
+
+
+def enqueue_overage_reporting_task(
+    mode="invoice_created",
+    billing_subscription_id=None,
+    stripe_subscription_id=None,
+    stripe_invoice_id=None,
+):
+    """
+    Encola la llamada a Django /subscription/report-overages/ en un thread
+    daemon para evitar ciclos síncronos (Stripe → Billing → Django → Billing).
+
+    Usado por handle_invoice_created para no bloquear el webhook de Stripe.
+
+    Args:
+        mode: str — "invoice_created", "periodic", "manual"
+        billing_subscription_id: int — ID de Subscription en Billing
+        stripe_subscription_id: str — ID de suscripción en Stripe
+        stripe_invoice_id: str — ID de invoice draft en Stripe
+
+    Returns:
+        True si la tarea fue encolada exitosamente.
+    """
+    def _background_task():
+        logger.info(
+            "overage invoice_created task started: "
+            "billing_subscription_id=%s stripe_subscription_id=%s "
+            "stripe_invoice_id=%s",
+            billing_subscription_id, stripe_subscription_id,
+            stripe_invoice_id,
+        )
+        try:
+            ok = trigger_main_app_overage_reporting(
+                mode=mode,
+                billing_subscription_id=billing_subscription_id,
+                stripe_subscription_id=stripe_subscription_id,
+                stripe_invoice_id=stripe_invoice_id,
+            )
+            logger.info(
+                "overage invoice_created task finished: "
+                "success=%s billing_subscription_id=%s "
+                "stripe_invoice_id=%s",
+                ok, billing_subscription_id, stripe_invoice_id,
+            )
+        except Exception:
+            logger.exception(
+                "overage invoice_created task failed unexpectedly: "
+                "billing_subscription_id=%s stripe_invoice_id=%s",
+                billing_subscription_id, stripe_invoice_id,
+            )
+
+    logger.info(
+        "overage invoice_created task queued: "
+        "billing_subscription_id=%s stripe_subscription_id=%s "
+        "stripe_invoice_id=%s",
+        billing_subscription_id, stripe_subscription_id,
+        stripe_invoice_id,
+    )
+
+    thread = threading.Thread(
+        target=_background_task,
+        name=f"overage-report-{stripe_invoice_id or 'unknown'}",
+        daemon=True,
+    )
+    thread.start()
+    return True

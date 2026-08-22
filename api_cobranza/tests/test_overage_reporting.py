@@ -241,9 +241,9 @@ class TestInvoiceCreatedWebhook:
             billing_reason="subscription_cycle",
         )
 
-        with patch("app.routers.webhooks.trigger_main_app_overage_reporting") as mock_trigger, \
+        with patch("app.services.main_app_overage.enqueue_overage_reporting_task") as mock_enqueue, \
              patch("app.routers.webhooks.engine", test_engine):
-            mock_trigger.return_value = True
+            mock_enqueue.return_value = True
 
             from fastapi.testclient import TestClient
             from app.main import app
@@ -256,8 +256,8 @@ class TestInvoiceCreatedWebhook:
                     )
 
             assert resp.status_code == 200
-            mock_trigger.assert_called_once()
-            call_kwargs = mock_trigger.call_args.kwargs
+            mock_enqueue.assert_called_once()
+            call_kwargs = mock_enqueue.call_args.kwargs
             assert call_kwargs["mode"] == "invoice_created"
             assert call_kwargs["stripe_subscription_id"] == "sub_stripe_param_check"
             assert call_kwargs["billing_subscription_id"] == sub_id
@@ -277,9 +277,9 @@ class TestInvoiceCreatedWebhook:
             },
         }
 
-        with patch("app.routers.webhooks.trigger_main_app_overage_reporting") as mock_trigger, \
+        with patch("app.services.main_app_overage.enqueue_overage_reporting_task") as mock_enqueue, \
              patch("app.routers.webhooks.engine", test_engine):
-            mock_trigger.return_value = True
+            mock_enqueue.return_value = True
 
             from fastapi.testclient import TestClient
             from app.main import app
@@ -292,7 +292,7 @@ class TestInvoiceCreatedWebhook:
                     )
 
             assert resp.status_code == 200
-            mock_trigger.assert_not_called()
+            mock_enqueue.assert_not_called()
 
     def test_django_falla_no_rompe_webhook(self):
         """Si Django falla, invoice.created sigue respondiendo OK a Stripe."""
@@ -306,9 +306,9 @@ class TestInvoiceCreatedWebhook:
             billing_reason="subscription_cycle",
         )
 
-        with patch("app.routers.webhooks.trigger_main_app_overage_reporting") as mock_trigger, \
+        with patch("app.services.main_app_overage.enqueue_overage_reporting_task") as mock_enqueue, \
              patch("app.routers.webhooks.engine", test_engine):
-            mock_trigger.return_value = False  # Django falló
+            mock_enqueue.return_value = True  # Enqueue siempre retorna True
 
             from fastapi.testclient import TestClient
             from app.main import app
@@ -320,7 +320,7 @@ class TestInvoiceCreatedWebhook:
                         headers=WEBHOOK_HEADERS,
                     )
 
-            # El webhook responde OK a Stripe aunque Django falle
+            # El webhook responde OK a Stripe — la tarea corre en background
             assert resp.status_code == 200
             assert resp.json()["status"] == "ok"
 
@@ -456,9 +456,9 @@ class TestInvoiceCreatedSendsStripeInvoiceId:
             billing_reason="subscription_cycle",
         )
 
-        with patch("app.routers.webhooks.trigger_main_app_overage_reporting") as mock_trigger, \
+        with patch("app.services.main_app_overage.enqueue_overage_reporting_task") as mock_enqueue, \
              patch("app.routers.webhooks.engine", test_engine):
-            mock_trigger.return_value = True
+            mock_enqueue.return_value = True
 
             from fastapi.testclient import TestClient
             from app.main import app
@@ -471,7 +471,8 @@ class TestInvoiceCreatedSendsStripeInvoiceId:
                     )
 
             assert resp.status_code == 200
-            call_kwargs = mock_trigger.call_args.kwargs
+            mock_enqueue.assert_called_once()
+            call_kwargs = mock_enqueue.call_args.kwargs
             assert call_kwargs["stripe_invoice_id"] == "in_send_id_123"
 
 
@@ -772,3 +773,97 @@ class TestReportOverageWithStripeInvoiceId:
         assert resp.status_code == 200
         data = resp.json()
         assert data["attached_to_invoice"] is True
+
+
+# ---------------------------------------------------------------------------
+# 13. enqueue_overage_reporting_task — background task (Fase 7C.6)
+# ---------------------------------------------------------------------------
+
+
+class TestEnqueueOverageReportingTask:
+    """Tests de enqueue_overage_reporting_task: ejecuta en background."""
+
+    def test_ejecuta_trigger_en_background_thread(self):
+        """enqueue llama a trigger_main_app_overage_reporting en un thread daemon."""
+        from app.services.main_app_overage import enqueue_overage_reporting_task
+
+        with patch("app.services.main_app_overage.trigger_main_app_overage_reporting") as mock_trigger, \
+             patch("app.services.main_app_overage.threading.Thread") as mock_thread_cls:
+            mock_trigger.return_value = True
+
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            result = enqueue_overage_reporting_task(
+                mode="invoice_created",
+                billing_subscription_id=42,
+                stripe_subscription_id="sub_bg_1",
+                stripe_invoice_id="in_bg_1",
+            )
+
+            assert result is True
+            mock_thread_cls.assert_called_once()
+            mock_thread.start.assert_called_once()
+
+            # Ejecutar el target del thread para verificar que llama a trigger
+            thread_target = mock_thread_cls.call_args.kwargs["target"]
+            thread_target()
+            mock_trigger.assert_called_once_with(
+                mode="invoice_created",
+                billing_subscription_id=42,
+                stripe_subscription_id="sub_bg_1",
+                stripe_invoice_id="in_bg_1",
+            )
+
+    def test_thread_es_daemon(self):
+        """El thread daemon=True para no bloquear el cierre."""
+        from app.services.main_app_overage import enqueue_overage_reporting_task
+
+        with patch("app.services.main_app_overage.threading.Thread") as mock_thread_cls:
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            enqueue_overage_reporting_task(
+                billing_subscription_id=1,
+                stripe_subscription_id="sub_daemon",
+            )
+
+            assert mock_thread_cls.call_args.kwargs["daemon"] is True
+
+    def test_retorna_true_aunque_trigger_falle(self):
+        """enqueue retorna True siempre — el thread maneja el error."""
+        from app.services.main_app_overage import enqueue_overage_reporting_task
+
+        with patch("app.services.main_app_overage.threading.Thread") as mock_thread_cls:
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            result = enqueue_overage_reporting_task(
+                billing_subscription_id=1,
+                stripe_subscription_id="sub_fail",
+            )
+
+            # Siempre retorna True porque la tarea se ejecuta en background
+            assert result is True
+
+    def test_thread_daemon_no_rompe_si_trigger_excepcion(self):
+        """Si trigger lanza excepción, el thread la captura sin explotar."""
+        from app.services.main_app_overage import enqueue_overage_reporting_task
+
+        with patch("app.services.main_app_overage.trigger_main_app_overage_reporting") as mock_trigger, \
+             patch("app.services.main_app_overage.threading.Thread") as mock_thread_cls:
+            mock_trigger.side_effect = RuntimeError("Django caído")
+
+            mock_thread = MagicMock()
+            mock_thread_cls.return_value = mock_thread
+
+            enqueue_overage_reporting_task(
+                billing_subscription_id=99,
+                stripe_subscription_id="sub_exc",
+                stripe_invoice_id="in_exc",
+            )
+
+            # Ejecutar el target del thread — no debe explotar
+            thread_target = mock_thread_cls.call_args.kwargs["target"]
+            thread_target()  # No lanza excepción
+            mock_trigger.assert_called_once()

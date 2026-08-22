@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     MAIN_APP_BASE: str | None = None
 
     # Fase 7C.3: Scheduler de reporte de excedentes
-    OVERAGE_REPORTING_INTERVAL_MINUTES: int = 15
+    OVERAGE_REPORTING_INTERVAL_MINUTES: int = 10
     ENABLE_OVERAGE_REPORTING_SCHEDULER: bool = True
     
     # JWT
