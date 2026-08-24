@@ -819,6 +819,8 @@ def handle_invoice_created(invoice: dict):
     Si Django falla en background, la idempotencia y el scheduler
     periódico harán reintentos.
     """
+    print("\n========== STRIPE INVOICE CREATED ==========")
+    
     from app.services.main_app_overage import enqueue_overage_reporting_task
 
     invoice_id = invoice.get("id")
