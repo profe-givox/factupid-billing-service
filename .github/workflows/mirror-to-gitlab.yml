@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - imanol
+      - develop_test
 
 jobs:
   sync:
