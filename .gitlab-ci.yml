@@ -121,10 +121,10 @@ test_api_dev:
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY_DEV}" > .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY_DEV}" >> .env
     - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET_DEV}" >> .env
-    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
-    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
+    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL_DEV}" >> .env
+    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL_DEV}" >> .env
 
-    - echo "MAIN_APP_BASE=${MAIN_APP_BASE}" >> .env
+    - echo "MAIN_APP_BASE=${MAIN_APP_BASE_DEV}" >> .env
     - echo "COBRANZA_WEBHOOK_SECRET=${COBRANZA_WEBHOOK_SECRET}" >> .env
     
     - echo "JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}" >> .env
@@ -158,10 +158,10 @@ deploy_api_dev:
     - echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY_DEV}" >> .env
     - echo "STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY_DEV}" >> .env
     - echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET_DEV}" >> .env
-    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}" >> .env
-    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}" >> .env
+    - echo "STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL_DEV}" >> .env
+    - echo "STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL_DEV}" >> .env
 
-    - echo "MAIN_APP_BASE=${MAIN_APP_BASE}" >> .env
+    - echo "MAIN_APP_BASE=${MAIN_APP_BASE_DEV}" >> .env
     - echo "COBRANZA_WEBHOOK_SECRET=${COBRANZA_WEBHOOK_SECRET}" >> .env
     
     - echo "JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}" >> .env
