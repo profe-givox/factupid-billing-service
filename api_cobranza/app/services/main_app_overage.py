@@ -76,7 +76,7 @@ def trigger_main_app_overage_reporting(
     )
 
     try:
-        with httpx.Client(timeout=45) as client:
+        with httpx.Client(timeout=45, verify=False) as client:
             response = client.post(url, json=payload, headers=headers)
 
             if response.status_code < 400:
