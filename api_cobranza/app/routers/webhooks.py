@@ -233,7 +233,7 @@ def notify_main_app(
 
     for attempt in range(max_retries):
         try:
-            with httpx.Client(timeout=10, verify=False) as client:
+            with httpx.Client(timeout=10) as client:
                 response = client.post(url, json=payload, headers=headers)
                 print(
                     "========== RESPUESTA DJANGO ==========\n"
@@ -373,7 +373,7 @@ def notify_subscription_event(
 
     for attempt in range(max_retries):
         try:
-            with httpx.Client(timeout=10, verify=False) as client:
+            with httpx.Client(timeout=10) as client:
                 response = client.post(url, json=payload, headers=headers)
                 if response.status_code < 400:
                     logger.info(
@@ -732,7 +732,7 @@ def _notify_cfdi_overage_billed(
 
     for attempt in range(max_retries):
         try:
-            with httpx.Client(timeout=10, verify=False) as client:
+            with httpx.Client(timeout=10) as client:
                 response = client.post(url, json=payload, headers=headers)
                 if response.status_code < 400:
                     logger.info(
