@@ -33,3 +33,49 @@ class SubscriptionRead(BaseModel):
     
 class SubscriptionCancel(BaseModel):
     at_period_end: bool = True
+
+
+class RegularizePaymentRequest(BaseModel):
+    """
+    Petición para crear una sesión del portal de cliente de Stripe y
+    regularizar el pago de una suscripción past_due/unpaid.
+    """
+    subscription_id: int
+    user_id: int
+    return_url: str
+
+
+class SubscriptionIdRequest(BaseModel):
+    """
+    Petición genérica con solo el ID interno de una suscripción.
+    """
+    subscription_id: int
+
+
+class ReportOverageRequest(BaseModel):
+    """
+    Petición para reportar excedentes de timbres CFDI a Stripe como un
+    invoice item (Fase 7C delta).
+
+    quantity es el delta pendiente (overage_quantity - reported_quantity),
+    NO el total del periodo. Billing lo trata como un lote independiente.
+
+    idempotency_key es una cadena determinística generada por Django para
+    evitar invoice items duplicados en Stripe.
+
+    stripe_invoice_id es opcional: si se proporciona, el invoice item se
+    crea directamente sobre esa factura draft (en vez de la cola del cliente).
+    """
+    subscription_id: int
+    user_id: int
+    overage_period_id: int
+    period_start: str
+    period_end: str
+    quantity: int
+    unit_price: float
+    total_amount: float
+    currency: str = "mxn"
+    description: Optional[str] = None
+    report_sequence: Optional[int] = None
+    idempotency_key: Optional[str] = None
+    stripe_invoice_id: Optional[str] = None

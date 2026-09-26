@@ -1,9 +1,12 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 
 import stripe
+
+logger = logging.getLogger(__name__)
 
 from app.db.session import engine
 from app.models.plan import Plan
@@ -16,6 +19,22 @@ from app.services.access_service import puede_acceder
 from app.core.security import get_current_user, require_permission
 from app.core.permissions import Permission
 from app.schemas.user import CurrentUser
+from app.schemas.subscription import (
+    RegularizePaymentRequest,
+    SubscriptionIdRequest,
+    ReportOverageRequest,
+)
+from app.services.stripe_service import (
+    create_subscription_checkout_session,
+    change_subscription_plan,
+    create_billing_portal_session,
+    reactivate_stripe_subscription,
+    release_stripe_schedule_if_possible,
+)
+from app.routers.webhooks import (
+    _resolve_billing_code_for_subscription,
+    notify_subscription_event,
+)
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -125,6 +144,540 @@ def start_subscription(
             "reused": False,
         }
 
+
+@router.post("/regularize-payment")
+def regularize_payment(
+    payload: RegularizePaymentRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CREATE_CHECKOUT)
+    ),
+):
+    """
+    Crea una sesión del portal de cliente de Stripe para que el usuario
+    regularice el pago de una suscripción en estado past_due o unpaid.
+
+    Reglas:
+      - Solo se permite para estados past_due/unpaid.
+      - La suscripción debe pertenecer al user_id indicado.
+      - No modifica el estado de la suscripción: la actualización llega por
+        webhook cuando Stripe procesa el pago.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if subscription.user_id != payload.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="La suscripción no pertenece al usuario",
+            )
+
+        if subscription.status not in ("past_due", "unpaid"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_NOT_PENDING",
+                    "message": (
+                        "Solo se puede regularizar el pago de suscripciones "
+                        "en estado past_due o unpaid"
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        # Obtener stripe_customer_id, recuperándolo de Stripe si hace falta
+        customer_id = subscription.stripe_customer_id
+
+        if not customer_id and subscription.stripe_subscription_id:
+            try:
+                stripe_sub = stripe.Subscription.retrieve(
+                    subscription.stripe_subscription_id
+                )
+                customer_id = stripe_sub.get("customer")
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+        if not customer_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No se encontró el cliente de Stripe para esta suscripción",
+            )
+
+        if not subscription.stripe_customer_id:
+            subscription.stripe_customer_id = customer_id
+            db.add(subscription)
+            db.commit()
+
+        try:
+            session = create_billing_portal_session(
+                customer_id=customer_id,
+                return_url=payload.return_url,
+            )
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        return {
+            "url": session.url,
+            "subscription_id": subscription.id,
+            "status": subscription.status,
+        }
+
+
+@router.post("/reactivate-cancel-scheduled")
+def reactivate_cancel_scheduled(
+    payload: SubscriptionIdRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CANCEL_SUBSCRIPTION)
+    ),
+):
+    """
+    Revierte una cancelación programada para conservar la suscripción.
+
+    Solo se permite si la suscripción tiene cancel_at_period_end=True o
+    estado cancel_scheduled. Llama a Stripe con cancel_at_period_end=False,
+    actualiza la BD local y notifica a Django (subscription_reactivated).
+
+    No borra información ni reinicia timbres.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if not (
+            subscription.cancel_at_period_end
+            or subscription.status == "cancel_scheduled"
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "NO_CANCEL_SCHEDULED",
+                    "message": (
+                        "La suscripción no tiene una cancelación programada"
+                    ),
+                    "status": subscription.status,
+                    "cancel_at_period_end": subscription.cancel_at_period_end,
+                },
+            )
+
+        if not subscription.stripe_subscription_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Suscripción no vinculada a Stripe",
+            )
+
+        try:
+            reactivate_stripe_subscription(
+                stripe_subscription_id=subscription.stripe_subscription_id,
+            )
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        # Actualizar BD local
+        subscription.cancel_at_period_end = False
+        subscription.status = "active"
+        subscription.canceled_at = None
+
+        db.add(subscription)
+        db.commit()
+        db.refresh(subscription)
+
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}"
+            )
+            return {"status": "ok"}
+
+        notify_subscription_event(
+            event_type="subscription_reactivated",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+            date_cutoff=subscription.end_date,
+            period_start=subscription.start_date,
+            period_end=subscription.end_date,
+            cancel_at_period_end=False,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+        )
+
+        return {
+            "status": "ok",
+            "subscription_id": subscription.id,
+            "subscription_status": "active",
+            "cancel_at_period_end": False,
+        }
+
+
+@router.post("/report-overage")
+def report_overage(
+    payload: ReportOverageRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.REGISTER_SUBSCRIPTION)
+    ),
+):
+    """
+    Reporta excedentes de timbres CFDI (OnDemand) a Stripe como un invoice item.
+
+    Fase 7B: Django calcula el excedente del periodo (CfdiOveragePeriod) y lo
+    envía aquí; Billing lo convierte en un Stripe invoice item del cliente.
+    NO se crea factura inmediata ni se cambia el estado de la suscripción.
+
+    Reglas:
+      - Solo se permite para estados active, cancel_scheduled o canceled.
+      - Se rechaza si la suscripción está past_due o unpaid.
+      - amount = total_amount * 100 (centavos), currency "mxn".
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if subscription.user_id != payload.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="La suscripción no pertenece al usuario",
+            )
+
+        if subscription.status in ("past_due", "unpaid"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_OVERDUE",
+                    "message": (
+                        "No se puede reportar excedentes con un pago pendiente. "
+                        "Regulariza primero la suscripción."
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        if subscription.status not in ("active", "cancel_scheduled", "canceled"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SUBSCRIPTION_NOT_BILLABLE",
+                    "message": (
+                        "La suscripción no está en un estado facturable"
+                    ),
+                    "status": subscription.status,
+                },
+            )
+
+        if payload.quantity <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="quantity debe ser mayor a 0",
+            )
+
+        if payload.total_amount <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="total_amount debe ser mayor a 0",
+            )
+
+        # Obtener stripe_customer_id, recuperándolo de Stripe si hace falta
+        customer_id = subscription.stripe_customer_id
+
+        if not customer_id and subscription.stripe_subscription_id:
+            try:
+                stripe_sub = stripe.Subscription.retrieve(
+                    subscription.stripe_subscription_id
+                )
+                customer_id = stripe_sub.get("customer")
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+        if not customer_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No se encontró el cliente de Stripe para esta suscripción",
+            )
+
+        if not subscription.stripe_customer_id and customer_id:
+            subscription.stripe_customer_id = customer_id
+            db.add(subscription)
+            db.commit()
+
+        amount_cents = int(round(payload.total_amount * 100))
+        currency = (payload.currency or "mxn").lower()
+
+        period_start = str(payload.period_start)[:10]
+        period_end = str(payload.period_end)[:10]
+        report_sequence = payload.report_sequence or 0
+
+        description = payload.description or (
+            f"{payload.quantity} timbres CFDI excedentes - "
+            f"lote {report_sequence} - periodo {period_start} a {period_end}"
+        )
+
+        # Idempotency key para evitar invoice items duplicados en Stripe.
+        # Si viene en el payload, se usa directamente. Stripe retorna el
+        # mismo invoice item si la key es idéntica.
+        idempotency_key = payload.idempotency_key or None
+
+        # Validación de idempotency_key vs stripe_invoice_id (Fase 7C.4 fix).
+        # La key debe reflejar el contexto (pending vs invoice-adjunto) para
+        # que Stripe no rechace la misma key con parámetros distintos.
+        if payload.stripe_invoice_id and idempotency_key:
+            if payload.stripe_invoice_id not in idempotency_key:
+                logger.warning(
+                    "report_overage: idempotency_key no contiene "
+                    "stripe_invoice_id. key=%s stripe_invoice_id=%s",
+                    idempotency_key, payload.stripe_invoice_id,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_IDEMPOTENCY_CONTEXT",
+                        "message": (
+                            "La idempotency_key para invoice draft debe "
+                            "incluir stripe_invoice_id."
+                        ),
+                    },
+                )
+
+        if not payload.stripe_invoice_id and idempotency_key:
+            if not idempotency_key.endswith("-pending"):
+                logger.warning(
+                    "report_overage: idempotency_key no termina en "
+                    "-pending sin stripe_invoice_id. key=%s",
+                    idempotency_key,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_IDEMPOTENCY_CONTEXT",
+                        "message": (
+                            "La idempotency_key sin invoice debe terminar "
+                            "en -pending."
+                        ),
+                    },
+                )
+
+        stripe_kwargs = dict(
+            customer=customer_id,
+            amount=amount_cents,
+            currency=currency,
+            description=description,
+            metadata={
+                "factupid_type": "cfdi_overage",
+                "user_id": str(payload.user_id),
+                "subscription_id": str(payload.subscription_id),
+                "overage_period_id": str(payload.overage_period_id),
+                "period_start": str(payload.period_start),
+                "period_end": str(payload.period_end),
+                "quantity": str(payload.quantity),
+                "unit_price": str(payload.unit_price),
+                "report_sequence": str(report_sequence),
+            },
+        )
+
+        if idempotency_key:
+            stripe_kwargs["idempotency_key"] = idempotency_key
+            stripe_kwargs["metadata"]["idempotency_key"] = idempotency_key
+
+        # Fase 7C.4: si se proporciona stripe_invoice_id, validar que
+        # la factura esté en estado draft y que el customer coincida.
+        # Si es válida, crear el invoice item directamente sobre esa factura.
+        attached_to_invoice = False
+        stripe_invoice_id = payload.stripe_invoice_id
+
+        if stripe_invoice_id:
+            try:
+                invoice_obj = stripe.Invoice.retrieve(stripe_invoice_id)
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+            invoice_status = invoice_obj.get("status")
+            invoice_customer = invoice_obj.get("customer")
+
+            if invoice_status != "draft":
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "INVOICE_NOT_DRAFT",
+                        "message": (
+                            f"Invoice {stripe_invoice_id} no está en estado draft "
+                            f"(status={invoice_status})."
+                        ),
+                        "invoice_status": invoice_status,
+                    },
+                )
+
+            if invoice_customer != customer_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "CUSTOMER_MISMATCH",
+                        "message": (
+                            f"El customer de la invoice ({invoice_customer}) "
+                            f"no coincide con el customer de la suscripción ({customer_id})"
+                        ),
+                    },
+                )
+
+            # Factura draft válida: crear item directamente sobre ella
+            stripe_kwargs["invoice"] = stripe_invoice_id
+            attached_to_invoice = True
+
+        try:
+            invoice_item = stripe.InvoiceItem.create(**stripe_kwargs)
+        except stripe.error.StripeError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": str(exc),
+                },
+            )
+
+        return {
+            "success": True,
+            "stripe_invoice_item_id": invoice_item.id,
+            "amount": amount_cents,
+            "currency": currency,
+            "idempotency_key": idempotency_key,
+            "attached_to_invoice": attached_to_invoice,
+            "stripe_invoice_id": stripe_invoice_id,
+        }
+
+
+@router.post("/cancel-scheduled-plan-change")
+def cancel_scheduled_plan_change(
+    payload: SubscriptionIdRequest,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
+):
+    """
+    Cancela un cambio de plan programado (downgrade/upgrade futuro).
+
+    Si existe stripe_schedule_id:
+      - Se recupera el schedule en Stripe.
+      - Si está activo/not_started se libera con release.
+      - Si ya está released/completed/canceled no se falla.
+      - Se limpia stripe_schedule_id local.
+    No cambia el plan actual, no reinicia timbres y no borra información.
+    """
+    with Session(engine) as db:
+        subscription = db.get(Subscription, payload.subscription_id)
+
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
+
+        if not subscription.stripe_schedule_id:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "NO_SCHEDULED_PLAN_CHANGE",
+                    "message": (
+                        "No hay un cambio de plan programado para esta suscripción"
+                    ),
+                },
+            )
+
+        released, schedule_status, error = release_stripe_schedule_if_possible(
+            stripe_schedule_id=subscription.stripe_schedule_id,
+        )
+
+        # Si Stripe no está disponible o el release falló, no limpiamos el ID
+        # local: el schedule sigue existiendo y bloqueando. Solo se limpia si
+        # se liberó con éxito o si el schedule ya está en estado terminal.
+        if error:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "Error comunicando con Stripe.",
+                    "stripe_error": error,
+                },
+            )
+
+        if not released and schedule_status not in ("released", "completed", "canceled"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SCHEDULE_NOT_RELEASED",
+                    "message": (
+                        "No se pudo liberar el cambio de plan programado "
+                        f"(estado: {schedule_status})"
+                    ),
+                    "schedule_status": schedule_status,
+                },
+            )
+
+        subscription.stripe_schedule_id = None
+        subscription.status = "active"
+
+        db.add(subscription)
+        db.commit()
+        db.refresh(subscription)
+
+        billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+        if not billing_code:
+            print(
+                f"ERROR: No se pudo resolver billing_code para "
+                f"subscription_id={subscription.id}"
+            )
+            return {"status": "ok"}
+
+        notify_subscription_event(
+            event_type="subscription_plan_change_canceled",
+            user_id=subscription.user_id,
+            billing_code=billing_code,
+            subscription_id=subscription.id,
+            plan_id=subscription.plan_id,
+            date_cutoff=subscription.end_date,
+            period_end=subscription.end_date,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+        )
+
+        return {
+            "status": "ok",
+            "subscription_id": subscription.id,
+            "released": released,
+            "schedule_status": schedule_status,
+            "stripe_schedule_id": None,
+        }
+
 # @router.post("/checkout")
 # def start_subscription(
 #     plan_code: str,
@@ -168,8 +721,13 @@ def start_subscription(
 
 
 @router.post("/change-plan")
-def change_plan(user_id: int, new_plan_code: str):
-    from app.db.session import engine
+def change_plan(
+    user_id: int,
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
+):
     from app.models.subscription import Subscription
     from app.models.plan import Plan
     from sqlmodel import Session, select
@@ -179,7 +737,10 @@ def change_plan(user_id: int, new_plan_code: str):
 
         # Obtener suscripción actual
         subscription = db.exec(
-            select(Subscription).where(Subscription.user_id == user_id)
+            select(Subscription).where(
+                Subscription.user_id == user_id, 
+                Subscription.status == "active"
+            )
         ).first()
 
         if not subscription:
@@ -211,24 +772,67 @@ def change_plan(user_id: int, new_plan_code: str):
         # =========================
         if new_plan.price > current_plan.price:
 
-            updated = stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
-                items=[{
-                    "id": item_id,
-                    "price": new_plan.stripe_price_id
-                }],
-                proration_behavior="create_prorations"
-            )
+            try:
+                updated = stripe.Subscription.modify(
+                    subscription.stripe_subscription_id,
+                    items=[{
+                        "id": item_id,
+                        "price": new_plan.stripe_price_id,
+                    }],
+                    proration_behavior="always_invoice",
+                    payment_behavior="pending_if_incomplete",
+                    expand=["latest_invoice.payment_intent"],
+                    metadata={
+                        "subscription_id": str(subscription.id),
+                        "user_id": str(subscription.user_id),
+                        "change_type": "upgrade",
+                        "old_plan_id": str(current_plan.id),
+                        "new_plan_id": str(new_plan.id),
+                        "new_plan_code": new_plan.code,
+                    },
+                )
 
-            # actualizar DB inmediato
-            subscription.plan_id = new_plan.id
+            except stripe.error.CardError as exc:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "message": "No se pudo cobrar el cambio de plan.",
+                        "stripe_error": str(exc),
+                    },
+                )
 
-            db.add(subscription)
-            db.commit()
+            except stripe.error.StripeError as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "message": "Error comunicando con Stripe.",
+                        "stripe_error": str(exc),
+                    },
+                )
+
+            # No actualizar DB local todavía.
+            # El cambio local debe aplicarse cuando llegue webhook de Stripe:
+            # invoice.payment_succeeded / customer.subscription.updated
+            # y el pago del prorrateo esté confirmado.
+
+            latest_invoice = updated.get("latest_invoice")
+            payment_intent = None
+
+            if latest_invoice and isinstance(latest_invoice, dict):
+                payment_intent = latest_invoice.get("payment_intent")
 
             return {
-                "message": "Upgrade aplicado inmediatamente",
-                "type": "upgrade"
+                "message": "Upgrade iniciado. Stripe intentará cobrar la diferencia inmediatamente.",
+                "type": "upgrade",
+                "stripe_subscription_id": updated["id"],
+                "status": updated.get("status"),
+                "latest_invoice": latest_invoice.get("id") if isinstance(latest_invoice, dict) else latest_invoice,
+                "payment_intent_status": payment_intent.get("status") if isinstance(payment_intent, dict) else None,
+                "requires_action": (
+                    payment_intent.get("status") in ["requires_action", "requires_confirmation"]
+                    if isinstance(payment_intent, dict)
+                    else False
+                ),
             }
 
         # =========================
@@ -275,6 +879,45 @@ def change_plan(user_id: int, new_plan_code: str):
 
             db.add(subscription)
             db.commit()
+            db.refresh(subscription)
+
+            # Notificar a Django el downgrade programado. Django guarda una
+            # copia visual mínima (plan destino + fecha) para que el aviso no
+            # dependa de que Billing esté disponible. El cambio real se
+            # notifica después con subscription_plan_changed.
+            effective_date = datetime.fromtimestamp(
+                current_period_end, tz=timezone.utc,
+            ).date().isoformat()
+
+            billing_code = _resolve_billing_code_for_subscription(db, subscription)
+
+            if billing_code:
+                notify_subscription_event(
+                    event_type="subscription_plan_change_scheduled",
+                    user_id=subscription.user_id,
+                    billing_code=billing_code,
+                    subscription_id=subscription.id,
+                    plan_id=subscription.plan_id,
+                    date_cutoff=subscription.end_date,
+                    period_end=subscription.end_date,
+                    stripe_subscription_id=subscription.stripe_subscription_id,
+                    full_payload={
+                        "event_type": "subscription_plan_change_scheduled",
+                        "user_id": subscription.user_id,
+                        "billing_code": billing_code,
+                        "subscription_id": subscription.id,
+                        "plan_id": subscription.plan_id,
+                        "scheduled_billing_code": new_plan.code,
+                        "scheduled_plan_id": new_plan.id,
+                        "effective_date": effective_date,
+                        "change_type": "downgrade",
+                    },
+                )
+            else:
+                print(
+                    f"ERROR: No se pudo resolver billing_code para "
+                    f"subscription_id={subscription.id} al programar downgrade"
+                )
 
             return {
                 "message": "Downgrade programado al final del ciclo",
@@ -337,13 +980,17 @@ def change_plan(user_id: int, new_plan_code: str):
 @router.post("/preview-plan-change")
 def preview_plan_change(
     user_id: int,
-    new_plan_code: str
+    new_plan_code: str,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.CHANGE_SUBSCRIPTION_PLAN)
+    ),
 ):
     with Session(engine) as db:
 
         subscription = db.exec(
             select(Subscription).where(
-                Subscription.user_id == user_id
+                Subscription.user_id == user_id,
+                Subscription.status == "active"
             )
         ).first()
 
@@ -441,7 +1088,12 @@ def preview_plan_change(
         }
         
 @router.get("/test-access/{user_id}")
-def test_access(user_id: int):
+def test_access(
+    user_id: int,
+    current_user: CurrentUser = Depends(
+        require_permission(Permission.VIEW_SUBSCRIPTION)
+    ),
+):
 
     subscription = obtener_subscription(user_id)
 

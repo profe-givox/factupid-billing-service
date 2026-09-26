@@ -25,7 +25,7 @@ class Subscription(SQLModel, table=True):
 
     status: str = Field(
         default="pending",
-        description="Estado: pending, active, expired, canceled"
+        description="Estado: pending, active, trialing, past_due, canceled, expired, incomplete"
     )
 
     provider: str = Field(
@@ -37,6 +37,12 @@ class Subscription(SQLModel, table=True):
         default=None,
         index=True,
         description="ID de la suscripcion en Stripe"
+    )
+
+    stripe_customer_id: Optional[str] = Field(
+        default=None,
+        index=True,
+        description="ID del cliente en Stripe (se guarda en checkout y webhooks para el portal de cliente)"
     )
     
     stripe_schedule_id: Optional[str] = Field(
