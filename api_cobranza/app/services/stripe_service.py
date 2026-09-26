@@ -96,6 +96,13 @@ def create_subscription_checkout_session(
     session = stripe.checkout.Session.create(
         mode="subscription",
         payment_method_types=["card"],
+        
+        automatic_tax={
+            "enabled": True
+        },
+        
+        billing_address_collection="required",
+        
         line_items=[
             {
                 "price": stripe_price_id,
