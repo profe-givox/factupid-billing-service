@@ -17,11 +17,12 @@ def _process_pending_notifications_job():
         stats = process_pending_notifications(max_items=20)
         if stats["processed"] > 0:
             logger.info(
-                "Cola procesada: %d procesadas, %d exitosas, %d fallidas, %d expiradas",
+                "Cola procesada: %d procesadas, %d exitosas, %d fallidas, %d expiradas, %d omitidas",
                 stats["processed"],
                 stats["succeeded"],
                 stats["failed"],
                 stats["expired"],
+                stats.get("skipped", 0),
             )
     except Exception as exc:
         logger.error("Error ejecutando job de cola de notificaciones: %s", exc)
@@ -53,6 +54,8 @@ def start_scheduler(
         minutes=interval_minutes,
         id="process_pending_notifications",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     logger.info(
         "Scheduler: process_pending_notifications cada %d minutos",

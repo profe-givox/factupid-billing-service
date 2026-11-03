@@ -19,6 +19,7 @@ def main():
     print(f"Exitosas:   {stats['succeeded']}")
     print(f"Fallidas:   {stats['failed']}")
     print(f"Expiradas:  {stats['expired']}")
+    print(f"Omitidas:   {stats.get('skipped', 0)}")
 
 
 if __name__ == "__main__":

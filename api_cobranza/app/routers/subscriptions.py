@@ -312,6 +312,37 @@ def reactivate_cancel_scheduled(
             )
             return {"status": "ok"}
 
+        try:
+            from app.routers.webhooks import _build_notification_key, enqueue_notification
+            key = _build_notification_key(None, "subscription_reactivated")
+            payload_outbox = {
+                "event_type": "subscription_reactivated",
+                "user_id": subscription.user_id,
+                "billing_code": billing_code,
+                "subscription_id": subscription.id,
+                "plan_id": subscription.plan_id,
+                "date_cutoff": subscription.end_date.isoformat() if subscription.end_date else None,
+                "period_start": subscription.start_date.isoformat() if subscription.start_date else None,
+                "period_end": subscription.end_date.isoformat() if subscription.end_date else None,
+                "cancel_at_period_end": False,
+                "stripe_subscription_id": subscription.stripe_subscription_id,
+                "event_created": int(__import__('datetime').datetime.now(__import__('datetime').timezone.utc).timestamp()),
+            }
+            enqueue_notification(
+                db,
+                notification_key=None,
+                event_type="subscription_reactivated",
+                payload=payload_outbox,
+                source_event_id=None,
+                event_created=payload_outbox["event_created"],
+                subscription_id=subscription.id,
+                user_id=subscription.user_id,
+                billing_code=billing_code,
+                plan_id=subscription.plan_id,
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
         notify_subscription_event(
             event_type="subscription_reactivated",
             user_id=subscription.user_id,
@@ -659,6 +690,35 @@ def cancel_scheduled_plan_change(
             )
             return {"status": "ok"}
 
+        try:
+            from app.routers.webhooks import enqueue_notification
+            from datetime import datetime, timezone
+            payload_outbox = {
+                "event_type": "subscription_plan_change_canceled",
+                "user_id": subscription.user_id,
+                "billing_code": billing_code,
+                "subscription_id": subscription.id,
+                "plan_id": subscription.plan_id,
+                "date_cutoff": subscription.end_date.isoformat() if subscription.end_date else None,
+                "period_end": subscription.end_date.isoformat() if subscription.end_date else None,
+                "stripe_subscription_id": subscription.stripe_subscription_id,
+                "event_created": int(datetime.now(timezone.utc).timestamp()),
+            }
+            enqueue_notification(
+                db,
+                notification_key=None,
+                event_type="subscription_plan_change_canceled",
+                payload=payload_outbox,
+                source_event_id=None,
+                event_created=payload_outbox["event_created"],
+                subscription_id=subscription.id,
+                user_id=subscription.user_id,
+                billing_code=billing_code,
+                plan_id=subscription.plan_id,
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
         notify_subscription_event(
             event_type="subscription_plan_change_canceled",
             user_id=subscription.user_id,
@@ -885,13 +945,48 @@ def change_plan(
             # copia visual mínima (plan destino + fecha) para que el aviso no
             # dependa de que Billing esté disponible. El cambio real se
             # notifica después con subscription_plan_changed.
-            effective_date = datetime.fromtimestamp(
-                current_period_end, tz=timezone.utc,
+            from datetime import datetime as _datetime, timezone as _timezone
+
+            effective_date = _datetime.fromtimestamp(
+                current_period_end, tz=_timezone.utc,
             ).date().isoformat()
 
             billing_code = _resolve_billing_code_for_subscription(db, subscription)
 
             if billing_code:
+                try:
+                    from app.routers.webhooks import enqueue_notification
+                    from datetime import datetime, timezone
+                    full_payload = {
+                        "event_type": "subscription_plan_change_scheduled",
+                        "user_id": subscription.user_id,
+                        "billing_code": billing_code,
+                        "subscription_id": subscription.id,
+                        "plan_id": subscription.plan_id,
+                        "date_cutoff": subscription.end_date.isoformat() if subscription.end_date else None,
+                        "period_end": subscription.end_date.isoformat() if subscription.end_date else None,
+                        "stripe_subscription_id": subscription.stripe_subscription_id,
+                        "scheduled_billing_code": new_plan.code,
+                        "scheduled_plan_id": new_plan.id,
+                        "effective_date": effective_date,
+                        "change_type": "downgrade",
+                        "event_created": int(datetime.now(timezone.utc).timestamp()),
+                    }
+                    enqueue_notification(
+                        db,
+                        notification_key=None,
+                        event_type="subscription_plan_change_scheduled",
+                        payload=full_payload,
+                        source_event_id=None,
+                        event_created=full_payload["event_created"],
+                        subscription_id=subscription.id,
+                        user_id=subscription.user_id,
+                        billing_code=billing_code,
+                        plan_id=subscription.plan_id,
+                    )
+                    db.commit()
+                except Exception:
+                    db.rollback()
                 notify_subscription_event(
                     event_type="subscription_plan_change_scheduled",
                     user_id=subscription.user_id,

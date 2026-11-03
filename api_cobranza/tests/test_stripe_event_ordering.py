@@ -96,17 +96,17 @@ class TestOrdenEventosInvoiceLuegoCheckout:
         invoice = event_inv["data"]["object"]
 
         with patch("app.routers.webhooks.engine", test_engine):
-            handle_subscription_payment(invoice, event_inv)
+            with patch("app.routers.webhooks.notify_main_app", return_value=True):
+                handle_subscription_payment(invoice, event_inv)
 
-        # Verificar que el pago se registró
+        # Verificar que el pago se registró y la invoice activó la suscripción
         with Session(test_engine) as db:
             payments = db.exec(
                 select(Payment).where(Payment.subscription_id == sub_id)
             ).all()
             assert len(payments) == 1
-            # La suscripción sigue pending (invoice no la activa)
             sub = db.get(Subscription, sub_id)
-            assert sub.status == "pending"
+            assert sub.status == "active"
 
         # 2) checkout.session.completed DESPUÉS
         event = _make_checkout_event(sub_id, billing_code="CFDI_PRO")
@@ -115,7 +115,7 @@ class TestOrdenEventosInvoiceLuegoCheckout:
         with patch("app.routers.webhooks.engine", test_engine):
             with patch("app.routers.webhooks.notify_main_app") as mock_notify:
                 handle_checkout_completed(session_data)
-                mock_notify.assert_called_once()
+                mock_notify.assert_not_called()
 
         # Verificar estado final
         with Session(test_engine) as db:

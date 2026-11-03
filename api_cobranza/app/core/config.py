@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     # Fase 7C.3: Scheduler de reporte de excedentes
     OVERAGE_REPORTING_INTERVAL_MINUTES: int = 10
     ENABLE_OVERAGE_REPORTING_SCHEDULER: bool = True
+
+    # Alertas Discord (observabilidad solamente)
+    DISCORD_WEBHOOK_URL: str | None = None
+    DISCORD_ALERTS_ENABLED: bool = False
+    DISCORD_ALERTS_COOLDOWN_SECONDS: int = 900
+    DISCORD_ALERT_WARNING_RETRY_COUNT: int = 3
+    DISCORD_ALERT_CRITICAL_ON_FAILED: bool = True
+    DISCORD_ALERT_ON_RECOVERY: bool = True
     
     # JWT
     JWT_PUBLIC_KEY: str | None = None

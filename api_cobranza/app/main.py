@@ -57,6 +57,11 @@ def health_queue():
                 WebhookNotificationQueue.status == "pending"
             )
         ).one()
+        processing = db.exec(
+            select(func.count(WebhookNotificationQueue.id)).where(
+                WebhookNotificationQueue.status == "processing"
+            )
+        ).one()
         failed = db.exec(
             select(func.count(WebhookNotificationQueue.id)).where(
                 WebhookNotificationQueue.status == "failed"
@@ -73,6 +78,7 @@ def health_queue():
         "queue": {
             "total": total,
             "pending": pending,
+            "processing": processing,
             "failed": failed,
             "completed": completed,
         },

@@ -32,10 +32,7 @@ class Payment(SQLModel, table=True):
 
 class WebhookNotificationQueue(SQLModel, table=True):
     """
-    Cola de reintentos para notificaciones fallidas hacia Django (MAIN_APP_BASE).
-    Se crea una entrada cuando notify_main_app() o notify_subscription_event()
-    agotan sus reintentos.
-    Un job externo (cron, scheduler) debe procesar los pendientes.
+    Cola de reintentos para notificaciones fallidas/hacia Django (MAIN_APP_BASE).
     """
     id: Optional[int] = Field(default=None, primary_key=True)
     event_type: str = Field(
@@ -54,6 +51,18 @@ class WebhookNotificationQueue(SQLModel, table=True):
     max_retries: int = Field(default=10)
     last_error: Optional[str] = None
     next_retry_at: Optional[datetime] = Field(default=None, index=True)
-    status: str = Field(default="pending", description="pending, completed, failed")
+    status: str = Field(
+        default="pending",
+        index=True,
+        description="pending, processing, completed, failed",
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_attempt_at: Optional[datetime] = None
+    # Claim / lease para workers concurrentes
+    claimed_at: Optional[datetime] = Field(default=None)
+    lease_expires_at: Optional[datetime] = Field(default=None, index=True)
+    completed_at: Optional[datetime] = Field(default=None)
+    # Idempotencia / trazabilidad
+    source_event_id: Optional[str] = Field(default=None, index=True)
+    event_created: Optional[datetime] = Field(default=None)
+    notification_key: Optional[str] = Field(default=None, index=True)
