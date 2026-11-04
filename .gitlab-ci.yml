@@ -103,8 +103,8 @@ deploy_api:
     - echo "=== Aplicando migraciones ==="
     - alembic upgrade head
 
-    - echo "=== Ejecutando seed de planes ==="
-    - python -c "from app.db.seed import seed_plans; seed_plans()"
+    # - echo "=== Ejecutando seed de planes ==="
+    # - python -c "from app.db.seed import seed_plans; seed_plans()"
 
     - sudo systemctl restart factupid-billing
     - sudo systemctl status factupid-billing --no-pager
@@ -190,8 +190,8 @@ deploy_api_dev:
     - echo "=== Aplicando migraciones ==="
     - alembic upgrade head
 
-    - echo "=== Ejecutando seed de planes ==="
-    - python -c "from app.db.seed import seed_plans; seed_plans()"
+    # - echo "=== Ejecutando seed de planes ==="
+    # - python -c "from app.db.seed import seed_plans; seed_plans()"
 
     - sudo systemctl restart factupid-billing
     - sudo systemctl status factupid-billing --no-pager
